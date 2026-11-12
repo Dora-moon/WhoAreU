@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "@supabase/supabase-js": "^2.48.0",
-    "@vercel/kv": "^3.0.0",
-    "@vercel/postgres": "^0.10.0"
+    "@vercel/kv": "^3.0.0"
   }
 }

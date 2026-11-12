@@ -1,12 +1,15 @@
-import { sql } from '@vercel/postgres';
+import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';
 
-const hasPostgres = Boolean(
-  process.env.POSTGRES_URL ||
-  process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL_NON_POOLING ||
-  process.env.DATABASE_URL
-);
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL;
+const sql = connectionString ? neon(connectionString) : null;
+
+// Helper to normalize rows returned by Neon SQL template queries
+function getRows(result) {
+  if (Array.isArray(result)) return result;
+  if (result && Array.isArray(result.rows)) return result.rows;
+  return [];
+}
 
 // Fallback in-memory store for local testing without database connection string
 const fallbackStore = {
@@ -17,7 +20,7 @@ const fallbackStore = {
 let initPromise = null;
 
 export async function ensureTables() {
-  if (!hasPostgres) return;
+  if (!sql) return;
   if (!initPromise) {
     initPromise = (async () => {
       try {
@@ -60,7 +63,7 @@ export async function ensureTables() {
 
 export async function getUserResources(userId, defaultGems = 1600) {
   if (!userId) return null;
-  if (!hasPostgres) {
+  if (!sql) {
     if (!fallbackStore.resources.has(userId)) {
       fallbackStore.resources.set(userId, {
         user_id: userId,
@@ -77,12 +80,13 @@ export async function getUserResources(userId, defaultGems = 1600) {
 
   await ensureTables();
 
-  const { rows } = await sql`
+  const result = await sql`
     SELECT user_id, gems, pity_counter, total_spins, total_exports, created_at, updated_at
     FROM user_resources
     WHERE user_id = ${userId}
     LIMIT 1;
   `;
+  const rows = getRows(result);
 
   if (rows && rows.length > 0) {
     return rows[0];
@@ -95,14 +99,15 @@ export async function getUserResources(userId, defaultGems = 1600) {
     ON CONFLICT (user_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
     RETURNING user_id, gems, pity_counter, total_spins, total_exports, created_at, updated_at;
   `;
+  const initRows = getRows(initRes);
 
-  return initRes.rows[0];
+  return initRows[0];
 }
 
 export async function updateUserResources(userId, { gems, pity_counter, total_spins, total_exports }) {
   if (!userId) return null;
 
-  if (!hasPostgres) {
+  if (!sql) {
     const current = await getUserResources(userId);
     if (gems !== undefined && gems !== null) current.gems = Number(gems);
     if (pity_counter !== undefined && pity_counter !== null) current.pity_counter = Number(pity_counter);
@@ -120,10 +125,10 @@ export async function updateUserResources(userId, { gems, pity_counter, total_sp
     INSERT INTO user_resources (user_id, gems, pity_counter, total_spins, total_exports, updated_at)
     VALUES (
       ${userId},
-      COALESCE(${gems !== undefined ? Number(gems) : null}, 1600),
-      COALESCE(${pity_counter !== undefined ? Number(pity_counter) : null}, 0),
-      COALESCE(${total_spins !== undefined ? Number(total_spins) : null}, 0),
-      COALESCE(${total_exports !== undefined ? Number(total_exports) : null}, 0),
+      COALESCE(${gems !== undefined && gems !== null ? Number(gems) : null}, 1600),
+      COALESCE(${pity_counter !== undefined && pity_counter !== null ? Number(pity_counter) : null}, 0),
+      COALESCE(${total_spins !== undefined && total_spins !== null ? Number(total_spins) : null}, 0),
+      COALESCE(${total_exports !== undefined && total_exports !== null ? Number(total_exports) : null}, 0),
       CURRENT_TIMESTAMP
     )
     ON CONFLICT (user_id) DO UPDATE SET
@@ -134,14 +139,15 @@ export async function updateUserResources(userId, { gems, pity_counter, total_sp
       updated_at = CURRENT_TIMESTAMP
     RETURNING user_id, gems, pity_counter, total_spins, total_exports, created_at, updated_at;
   `;
+  const rows = getRows(res);
 
-  return res.rows[0];
+  return rows[0];
 }
 
 export async function getUserCards(userId) {
   if (!userId) return [];
 
-  if (!hasPostgres) {
+  if (!sql) {
     const list = [];
     fallbackStore.cards.forEach(c => {
       if (c.user_id === userId) list.push(c);
@@ -151,14 +157,14 @@ export async function getUserCards(userId) {
 
   await ensureTables();
 
-  const { rows } = await sql`
+  const result = await sql`
     SELECT card_id, user_id, target_name, target_role, rarity, era, ethnicity, religion, story_json, is_exported, created_at
     FROM user_cards
     WHERE user_id = ${userId}
     ORDER BY created_at DESC;
   `;
 
-  return rows || [];
+  return getRows(result);
 }
 
 export async function insertUserCard({
@@ -174,7 +180,7 @@ export async function insertUserCard({
 }) {
   const cardId = card_id || ('crd_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substring(2, 8))));
 
-  if (!hasPostgres) {
+  if (!sql) {
     // Also ensure user_resources exists
     await getUserResources(user_id);
     const cardRecord = {
@@ -242,7 +248,7 @@ export async function insertUserCard({
 export async function trackCardExport(cardId, userId = null) {
   if (!cardId) return { success: false, error: 'cardId required' };
 
-  if (!hasPostgres) {
+  if (!sql) {
     const card = fallbackStore.cards.get(cardId);
     if (card) {
       card.is_exported = true;
@@ -265,10 +271,11 @@ export async function trackCardExport(cardId, userId = null) {
     WHERE card_id = ${cardId}
     RETURNING card_id, user_id, is_exported;
   `;
+  const cardRows = getRows(cardRes);
 
   let effectiveUserId = userId;
-  if (!effectiveUserId && cardRes.rows.length > 0) {
-    effectiveUserId = cardRes.rows[0].user_id;
+  if (!effectiveUserId && cardRows.length > 0) {
+    effectiveUserId = cardRows[0].user_id;
   }
 
   let totalExports = 0;
@@ -280,8 +287,9 @@ export async function trackCardExport(cardId, userId = null) {
       WHERE user_id = ${effectiveUserId}
       RETURNING total_exports;
     `;
-    if (resUpdate.rows.length > 0) {
-      totalExports = resUpdate.rows[0].total_exports;
+    const updateRows = getRows(resUpdate);
+    if (updateRows.length > 0) {
+      totalExports = updateRows[0].total_exports;
     }
   }
 
