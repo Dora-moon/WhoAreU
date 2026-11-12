@@ -52,8 +52,20 @@ export class GachaController {
 
   async handlePull() {
     if (this.isBusy) return;
+
+    const spinCost = 160;
+    if (this.userProfileModel.getGems() < spinCost) {
+      this.cardView.toast(this.userProfileModel.t('notEnoughGems', { cost: spinCost }));
+      return;
+    }
+
     this.isBusy = true;
     this.audioView.init();
+
+    // Deduct gems and increment spin counter
+    this.userProfileModel.deductGems(spinCost);
+    this.userProfileModel.incrementTotalSpins(1);
+    this.cardView.updateGemsBadge(this.userProfileModel.getGems());
 
     const t = (k, v) => this.userProfileModel.t(k, v);
 
@@ -148,8 +160,20 @@ export class GachaController {
 
   async handleMultiPull(count = 10) {
     if (this.isBusy) return;
+
+    const multiCost = count * 160;
+    if (this.userProfileModel.getGems() < multiCost) {
+      this.cardView.toast(this.userProfileModel.t('notEnoughGems', { cost: multiCost }));
+      return;
+    }
+
     this.isBusy = true;
     this.audioView.init();
+
+    // Deduct gems and increment spin counter
+    this.userProfileModel.deductGems(multiCost);
+    this.userProfileModel.incrementTotalSpins(count);
+    this.cardView.updateGemsBadge(this.userProfileModel.getGems());
 
     const t = (k, v) => this.userProfileModel.t(k, v);
 

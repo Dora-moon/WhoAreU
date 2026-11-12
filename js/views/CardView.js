@@ -44,6 +44,8 @@ export class CardView {
     this.invDetail = this.$('#invDetail');
     this.invClear = this.$('#invClear');
     this.invCountBadge = this.$('#invCount');
+    this.gemCountBadge = this.$('#gemCount');
+    this.btnGems = this.$('#btnGems');
 
     // Multi-pull dialog elements
     this.multiPullDlg = this.$('#multiPullDlg');
@@ -759,11 +761,33 @@ export class CardView {
   }
 
   openExportModal(entry, kind, profileModel) {
+    this.currentExportEntry = entry;
+    this.currentExportKind = kind;
     if (!this.expDlg.open) this.expDlg.showModal();
     this.renderExport(entry, kind, profileModel);
   }
 
-  downloadExportCanvas(entry, kind, profileModel) {
+  async trackExportApi(cardId, userId) {
+    if (!cardId) return null;
+    try {
+      const resp = await fetch('/api/track-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardId, userId })
+      });
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (err) {
+      console.warn('[CardView] track-export error:', err);
+      return null;
+    }
+  }
+
+  downloadExportCanvas(entry, kind, profileModel, onExportSuccess) {
+    const targetEntry = entry || this.currentExportEntry;
+    const targetKind = kind || this.currentExportKind || 'paper';
+    if (!targetEntry) return;
+
     try {
       this.expCanvas.toBlob(blob => {
         if (!blob) {
@@ -771,13 +795,30 @@ export class CardView {
           return;
         }
         const a = document.createElement('a');
-        const cardName = entry.card.name.replace(/\W+/g, '-').toLowerCase();
+        const cardName = ((targetEntry.card && targetEntry.card.name) || 'figure').replace(/\W+/g, '-').toLowerCase();
         a.href = URL.createObjectURL(blob);
-        a.download = `wiki-gacha-${cardName}-${kind}.png`;
+        a.download = `wiki-gacha-${cardName}-${targetKind}.png`;
         document.body.append(a);
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+        // Track export immediately after generating / downloading
+        const cardId = targetEntry.card_id || targetEntry.id;
+        const userId = profileModel && typeof profileModel.getUserId === 'function' ? profileModel.getUserId() : null;
+
+        targetEntry.is_exported = true;
+        targetEntry.isExported = true;
+
+        if (profileModel && typeof profileModel.incrementTotalExports === 'function') {
+          profileModel.incrementTotalExports(1);
+        }
+
+        this.trackExportApi(cardId, userId).catch(() => {});
+
+        if (typeof onExportSuccess === 'function') {
+          onExportSuccess(targetEntry);
+        }
       }, 'image/png');
     } catch (e) {
       this.toast(profileModel.t('dlFail'));
@@ -785,10 +826,18 @@ export class CardView {
   }
 
   // ==========================================================================
-  // Museum of Curiosities (Inventory) Modal
+  // Museum of Curiosities (Inventory) Modal & Gem Badge
   // ==========================================================================
   updateInventoryBadge(count) {
-    this.invCountBadge.textContent = count;
+    if (this.invCountBadge) {
+      this.invCountBadge.textContent = count;
+    }
+  }
+
+  updateGemsBadge(gems) {
+    if (this.gemCountBadge) {
+      this.gemCountBadge.textContent = Number(gems) || 0;
+    }
   }
 
   renderInventoryGrid(inventoryModel, profileModel, onOpenDetail) {
@@ -827,6 +876,15 @@ export class CardView {
         spItem.textContent = '🏺 ' + s.itemName;
 
         textBox.append(bName, spItem);
+
+        // Render "📤 Đã xuất chia sẻ" badge if is_exported === true
+        if (e.is_exported || e.isExported) {
+          const exportBadge = document.createElement('div');
+          exportBadge.className = 'export-badge';
+          exportBadge.textContent = L === 'vi' ? '📤 Đã xuất chia sẻ' : '📤 Shared / Exported';
+          textBox.append(exportBadge);
+        }
+
         tile.append(imgBox, textBox);
         return tile;
       })
@@ -857,6 +915,14 @@ export class CardView {
     const metaDiv = document.createElement('div');
     metaDiv.className = 'muted';
     metaDiv.textContent = `${c.name} · ${c.birth}–${c.death || t('present')} · ${t('r_' + c.tier)} · ${c.score}%`;
+
+    if (entry.is_exported || entry.isExported) {
+      const expBadge = document.createElement('span');
+      expBadge.className = 'export-badge';
+      expBadge.style.cssText = 'margin-left: 8px; vertical-align: middle;';
+      expBadge.textContent = profileModel.lang === 'vi' ? '📤 Đã xuất chia sẻ' : '📤 Shared / Exported';
+      metaDiv.append(expBadge);
+    }
 
     const chapNodes = [s.ch1, s.ch2, s.ch3].map((chText, i) => {
       const art = document.createElement('div');

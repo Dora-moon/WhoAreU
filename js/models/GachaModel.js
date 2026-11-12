@@ -17,6 +17,7 @@ export const TOTAL_CARDS = 80;
 
 export class GachaModel {
   constructor() {
+    GachaModel.instance = this;
     this.storageKey = 'wg_pity';
     this.pity = this._loadPity();
   }
@@ -39,6 +40,12 @@ export class GachaModel {
   }
 
   getPity() {
+    return this.pity;
+  }
+
+  setPity(val) {
+    this.pity = Math.max(0, Number(val) || 0);
+    this._savePity();
     return this.pity;
   }
 

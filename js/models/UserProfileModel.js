@@ -138,6 +138,10 @@ export const I18N = {
     title: 'Live Wikipedia Gacha',
     subtitle: 'Real-Time History Matcher & Absurd Story Engine',
     invTip: 'Museum of Curiosities',
+    gemTip: 'Diamonds & Gems — Used for Timeline Spins (Click for +1600 Daily Bonus)',
+    exportedBadge: '📤 Shared / Exported',
+    notEnoughGems: '💎 Not enough Gems! (Need {cost} Gems). Click 💎 to claim +1600 bonus!',
+    bonusClaimed: '✨ +1600 Gems Daily Bonus claimed! Ready to spin!',
     langTip: 'Language / Ngôn ngữ',
     themeTip: 'Toggle theme',
     soundTip: 'Toggle sound',
@@ -292,6 +296,10 @@ export const I18N = {
     title: 'Live Wikipedia Gacha',
     subtitle: 'Máy ghép lịch sử thời gian thực & Động cơ truyện phi lý',
     invTip: 'Bảo tàng Vật thể Kỳ quặc',
+    gemTip: 'Kim Cương & Gem — Dùng để quay dòng thời gian (Bấm để nhận +1600 Gem thưởng)',
+    exportedBadge: '📤 Đã xuất chia sẻ',
+    notEnoughGems: '💎 Không đủ Gem! (Cần {cost} Gem). Bấm vào biểu tượng 💎 để nhận +1600 Gem miễn phí!',
+    bonusClaimed: '✨ Đã nhận +1600 Gem thưởng hàng ngày! Tha hồ quay thẻ!',
     langTip: 'Language / Ngôn ngữ',
     themeTip: 'Đổi giao diện',
     soundTip: 'Bật/tắt âm thanh',
@@ -454,8 +462,21 @@ export class UserProfileModel {
   constructor() {
     UserProfileModel.instance = this;
     this.storageKey = 'wg_form';
+    this.userIdKey = 'wg_uid';
+    this.gemsKey = 'wg_gems';
+    this.spinsKey = 'wg_spins';
+    this.exportsKey = 'wg_exports';
     this.langKey = 'wg_lang';
     this.themeKey = 'wg_theme';
+    this.userId = null;
+    this._syncTimer = null;
+    this._gemListeners = [];
+    this.gachaModel = null;
+    this.inventoryModel = null;
+
+    this.gems = this._load(this.gemsKey, 1600);
+    this.totalSpins = this._load(this.spinsKey, 0);
+    this.totalExports = this._load(this.exportsKey, 0);
 
     const navLang = typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'en';
     this.lang = this._load(this.langKey, navLang.toLowerCase().startsWith('vi') ? 'vi' : 'en');
@@ -525,8 +546,214 @@ export class UserProfileModel {
     }
   }
 
+  getUserId() {
+    if (this.userId) return this.userId;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(this.userIdKey);
+        if (saved && typeof saved === 'string' && saved.trim()) {
+          this.userId = saved.trim();
+          return this.userId;
+        }
+      }
+    } catch (e) {}
+
+    let newId = '';
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      newId = 'usr_' + crypto.randomUUID();
+    } else {
+      newId = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+    }
+    this.userId = newId;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.userIdKey, newId);
+      }
+    } catch (e) {}
+    return this.userId;
+  }
+
+  setUserId(id) {
+    if (id && typeof id === 'string' && id.trim()) {
+      this.userId = id.trim();
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(this.userIdKey, this.userId);
+        }
+      } catch (e) {}
+    }
+    return this.userId;
+  }
+
   save() {
     this._save(this.storageKey, this.fields);
+  }
+
+  getGems() {
+    return Number(this.gems) || 0;
+  }
+
+  setGems(val) {
+    this.gems = Math.max(0, Number(val) || 0);
+    this._save(this.gemsKey, this.gems);
+    this._notifyGemsChange();
+    this.scheduleSyncState();
+    return this.gems;
+  }
+
+  deductGems(amount) {
+    const cost = Number(amount) || 0;
+    if (this.gems < cost) return false;
+    this.gems -= cost;
+    this._save(this.gemsKey, this.gems);
+    this._notifyGemsChange();
+    this.scheduleSyncState();
+    return true;
+  }
+
+  addGems(amount) {
+    const bonus = Number(amount) || 0;
+    this.gems += bonus;
+    this._save(this.gemsKey, this.gems);
+    this._notifyGemsChange();
+    this.scheduleSyncState();
+    return this.gems;
+  }
+
+  onGemsChange(fn) {
+    if (typeof fn === 'function') {
+      this._gemListeners.push(fn);
+    }
+  }
+
+  _notifyGemsChange() {
+    this._gemListeners.forEach(fn => {
+      try { fn(this.gems); } catch (e) {}
+    });
+  }
+
+  getTotalSpins() {
+    return Number(this.totalSpins) || 0;
+  }
+
+  incrementTotalSpins(n = 1) {
+    this.totalSpins = (Number(this.totalSpins) || 0) + Number(n);
+    this._save(this.spinsKey, this.totalSpins);
+    this.scheduleSyncState();
+    return this.totalSpins;
+  }
+
+  getTotalExports() {
+    return Number(this.totalExports) || 0;
+  }
+
+  incrementTotalExports(n = 1) {
+    this.totalExports = (Number(this.totalExports) || 0) + Number(n);
+    this._save(this.exportsKey, this.totalExports);
+    this.scheduleSyncState();
+    return this.totalExports;
+  }
+
+  scheduleSyncState(delayMs = 400) {
+    if (typeof fetch === 'undefined') return;
+    if (this._syncTimer) clearTimeout(this._syncTimer);
+    this._syncTimer = setTimeout(() => {
+      this.syncStateToRemote().catch(() => {});
+    }, delayMs);
+  }
+
+  async syncStateToRemote() {
+    if (typeof fetch === 'undefined') return null;
+    const userId = this.getUserId();
+    if (!userId) return null;
+    try {
+      let pityVal = 0;
+      if (this.gachaModel && typeof this.gachaModel.getPity === 'function') {
+        pityVal = this.gachaModel.getPity();
+      } else {
+        const savedPity = this._load('wg_pity', 0);
+        pityVal = Number(savedPity) || 0;
+      }
+
+      const resp = await fetch('/api/sync-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          gems: this.gems,
+          pity_counter: pityVal,
+          pityCounter: pityVal,
+          total_spins: this.totalSpins,
+          totalSpins: this.totalSpins,
+          total_exports: this.totalExports,
+          totalExports: this.totalExports
+        })
+      });
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (err) {
+      // Seamless fallback to localStorage
+      return null;
+    }
+  }
+
+  async syncFromRemote(inventoryModel = null, gachaModel = null) {
+    if (typeof fetch === 'undefined') return false;
+    const userId = this.getUserId();
+    if (!userId) return false;
+    try {
+      const resp = await fetch(`/api/sync-state?userId=${encodeURIComponent(userId)}`);
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      if (data && data.success) {
+        let changed = false;
+
+        // 1. Hydrate Gems
+        if (data.gems !== undefined && data.gems !== null) {
+          const remoteGems = Number(data.gems);
+          if (remoteGems !== this.gems) {
+            this.gems = remoteGems;
+            this._save(this.gemsKey, this.gems);
+            this._notifyGemsChange();
+            changed = true;
+          }
+        }
+
+        // 2. Hydrate Total Spins & Exports
+        if (data.total_spins !== undefined && data.total_spins !== null) {
+          this.totalSpins = Number(data.total_spins);
+          this._save(this.spinsKey, this.totalSpins);
+        }
+        if (data.total_exports !== undefined && data.total_exports !== null) {
+          this.totalExports = Number(data.total_exports);
+          this._save(this.exportsKey, this.totalExports);
+        }
+
+        // 3. Hydrate Pity Counter
+        const targetGacha = gachaModel || this.gachaModel;
+        if (targetGacha && (data.pity_counter !== undefined || data.pityCounter !== undefined)) {
+          const remotePity = Number(data.pity_counter !== undefined ? data.pity_counter : data.pityCounter) || 0;
+          if (typeof targetGacha.setPity === 'function') {
+            targetGacha.setPity(remotePity);
+          } else {
+            targetGacha.pity = remotePity;
+            if (typeof targetGacha._savePity === 'function') targetGacha._savePity();
+          }
+        }
+
+        // 4. Hydrate Inventory
+        const targetInv = inventoryModel || this.inventoryModel;
+        if (targetInv && Array.isArray(data.cards)) {
+          const invChanged = targetInv.syncFromRemoteCards(data.cards);
+          if (invChanged) changed = true;
+        }
+
+        return changed;
+      }
+    } catch (err) {
+      // Seamless fallback to localStorage
+    }
+    return false;
   }
 
   setField(key, value) {

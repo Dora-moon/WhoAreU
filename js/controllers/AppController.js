@@ -38,6 +38,9 @@ export class AppController {
     this.gachaModel = new GachaModel();
     this.storyModel = new StoryModel();
     this.inventoryModel = new InventoryModel();
+    this.inventoryModel.userProfileModel = this.userProfileModel;
+    this.userProfileModel.inventoryModel = this.inventoryModel;
+    this.userProfileModel.gachaModel = this.gachaModel;
 
     // Easter egg state
     this.logoTaps = 0;
@@ -106,14 +109,58 @@ export class AppController {
       this.applyTheme();
       this.applyLanguage();
 
+      this.cardView.updateGemsBadge(this.userProfileModel.getGems());
       this.cardView.updateInventoryBadge(this.inventoryModel.getCount());
       this.rouletteView.setStatus(this.userProfileModel.t('st_idle'), false);
+
+      // Register gem change listener
+      this.userProfileModel.onGemsChange(gems => {
+        this.cardView.updateGemsBadge(gems);
+      });
+
+      // Hook up gem counter button to claim daily bonus (+1600 gems)
+      if (this.cardView.btnGems) {
+        this.cardView.btnGems.onclick = () => {
+          this.userProfileModel.addGems(1600);
+          this.cardView.toast(this.userProfileModel.t('bonusClaimed'));
+          this.audioView.chime();
+          this.cardView.confetti(60, ['#38bdf8', '#818cf8', '#ffffff']);
+        };
+      }
+
+      // Background remote sync hydration from Vercel Postgres
+      this.syncFromRemote();
     };
 
     if (typeof document !== 'undefined' && document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => run());
     } else {
       run();
+    }
+  }
+
+  async syncFromRemote() {
+    try {
+      await this.userProfileModel.syncFromRemote(
+        this.inventoryModel,
+        this.gachaModel
+      );
+
+      this.cardView.updateGemsBadge(this.userProfileModel.getGems());
+      this.cardView.updateInventoryBadge(this.inventoryModel.getCount());
+      if (this.gachaController) {
+        this.gachaController.renderInitialPity();
+      }
+
+      if (this.cardView.invDlg && this.cardView.invDlg.open) {
+        this.cardView.renderInventoryGrid(
+          this.inventoryModel,
+          this.userProfileModel,
+          entry => this.openInventoryDetail(entry)
+        );
+      }
+    } catch (e) {
+      console.warn('[AppController] Background remote hydration error:', e);
     }
   }
 
@@ -343,32 +390,47 @@ export class AppController {
   initExportModal() {
     this.cardView.tabPaper.onclick = () => {
       this.currentExport.kind = 'paper';
-      if (this.currentExport.entry) {
-        this.cardView.renderExport(this.currentExport.entry, 'paper', this.userProfileModel);
+      const entry = this.currentExport.entry || this.cardView.currentExportEntry;
+      if (entry) {
+        this.cardView.renderExport(entry, 'paper', this.userProfileModel);
       }
     };
 
     this.cardView.tabHolo.onclick = () => {
       this.currentExport.kind = 'holo';
-      if (this.currentExport.entry) {
-        this.cardView.renderExport(this.currentExport.entry, 'holo', this.userProfileModel);
+      const entry = this.currentExport.entry || this.cardView.currentExportEntry;
+      if (entry) {
+        this.cardView.renderExport(entry, 'holo', this.userProfileModel);
       }
     };
 
     this.cardView.expDl.onclick = () => {
-      if (this.currentExport.entry) {
+      const entry = this.currentExport.entry || this.cardView.currentExportEntry;
+      const kind = this.currentExport.kind || this.cardView.currentExportKind || 'paper';
+      if (entry) {
         this.cardView.downloadExportCanvas(
-          this.currentExport.entry,
-          this.currentExport.kind,
-          this.userProfileModel
+          entry,
+          kind,
+          this.userProfileModel,
+          trackedEntry => {
+            this.inventoryModel.markExported(trackedEntry.card_id || trackedEntry.id);
+            if (this.cardView.invDlg && this.cardView.invDlg.open) {
+              this.cardView.renderInventoryGrid(
+                this.inventoryModel,
+                this.userProfileModel,
+                e => this.openInventoryDetail(e)
+              );
+            }
+          }
         );
       }
     };
 
     this.cardView.expCopy.onclick = async () => {
-      if (!this.currentExport.entry) return;
+      const entry = this.currentExport.entry || this.cardView.currentExportEntry;
+      if (!entry) return;
       const text = this.inventoryModel.formatEntryText(
-        this.currentExport.entry,
+        entry,
         this.userProfileModel.lang,
         this.userProfileModel.t('present')
       );
