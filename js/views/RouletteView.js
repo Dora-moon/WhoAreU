@@ -26,6 +26,10 @@ export class RouletteView {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ characters })
+      }).then(async (resp) => {
+        if (!resp) return;
+        const resData = await resp.json().catch(() => ({}));
+        console.log('[CharacterPool] Synced:', resData);
       }).catch(() => {});
     } catch (_) {}
   }

@@ -167,11 +167,12 @@ export default async function handler(req, res) {
       const body = safeParseBody(req.body);
       const characters = Array.isArray(body.characters) ? body.characters : [];
       const sanitized = characters.map(sanitizeChar).filter(Boolean);
-      const n = await upsertDiscoveredCharacters(sanitized);
+      const resData = await upsertDiscoveredCharacters(sanitized);
       return res.status(200).json({
         success: true,
-        upserted: n,
-        accepted: sanitized.length
+        upserted: resData.upserted,
+        accepted: sanitized.length,
+        errors: resData.errors || []
       });
     }
 

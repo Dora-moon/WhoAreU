@@ -923,12 +923,12 @@ export class WikipediaModel {
         body: JSON.stringify({ characters: payload })
       });
       if (resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        if (j && j.upserted) {
+        const resData = await resp.json().catch(() => ({}));
+        if (resData && resData.upserted) {
           // Also merge into the local rotating cache so the next spin
           // benefits without another DB round-trip.
           this._mergeDiscovered(fresh);
-          console.log(`[Harvester] Uploaded ${j.upserted} chars`);
+          console.log('[CharacterPool] Synced:', resData);
         }
       } else {
         const errText = await resp.text().catch(() => '');

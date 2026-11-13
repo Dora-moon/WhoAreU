@@ -396,13 +396,90 @@ export async function queryDiscoveredCharacters({ universe, country, gender, lim
   return getRows(result);
 }
 
+// Sanitize a single discovered-character record into safe DB values.
+// undefined -> null, eraYear -> valid integer or null, every string is
+// coerced + trimmed + truncated so a malformed or oversized value can NEVER
+// cause a Postgres parameter error. Returns null when there is no usable
+// char_key, so callers can filter the batch before inserting.
+function sanitizeDiscoveredChar(c) {
+  if (!c || typeof c !== 'object') return null;
+
+  const charKeyRaw = c.char_key || c.charKey || c.id || c.name || '';
+  const char_key = String(charKeyRaw).trim().slice(0, 240);
+  if (!char_key) return null;
+
+  const name = String(c.name || c.title || char_key).trim().slice(0, 240);
+  const en_title = (c.en_title || c.enTitle)
+    ? String(c.en_title || c.enTitle).trim().slice(0, 240)
+    : null;
+  const universe = String(c.universe || 'historical').trim().slice(0, 45);
+  const country = String(c.country || c.countryId || 'any').trim().slice(0, 95);
+  const gender = String(c.gender || 'any').trim().slice(0, 45);
+  const ethnicity = String(c.ethnicity || 'any').trim().slice(0, 95);
+  const religion = String(c.religion || 'any').trim().slice(0, 95);
+
+  // era_year must be a valid integer or null — never a float, NaN, or string.
+  const yr = Number(c.era_year ?? c.eraYear ?? c.birth);
+  const eraYear = Number.isFinite(yr) ? Math.trunc(yr) : null;
+
+  const target_role = (c.target_role || c.targetRole)
+    ? String(c.target_role || c.targetRole).trim().slice(0, 240)
+    : null;
+
+  const bio_vi = (c.bio_vi || c.bioVi || c.summaryVi)
+    ? String(c.bio_vi || c.bioVi || c.summaryVi)
+    : null;
+  const bio_en = (c.bio_en || c.bioEn || c.summaryEn)
+    ? String(c.bio_en || c.bioEn || c.summaryEn)
+    : null;
+
+  const img_url = (c.img_url || c.imgUrl || c.imageUrl || c.img)
+    ? String(c.img_url || c.imgUrl || c.imageUrl || c.img)
+    : null;
+
+  const source_wiki = (c.source_wiki || c.sourceWiki)
+    ? String(c.source_wiki || c.sourceWiki).trim().slice(0, 115)
+    : null;
+
+  return {
+    char_key,
+    name,
+    en_title,
+    universe,
+    country,
+    gender,
+    ethnicity,
+    religion,
+    era_year: eraYear,
+    target_role,
+    bio_vi,
+    bio_en,
+    img_url,
+    source_wiki
+  };
+}
+
 // Batch upsert (max 60 items) into discovered_characters.
 // img_url is never downgraded: COALESCE(EXCLUDED.img_url, existing) keeps the
 // first portrait we ever found. country is never downgraded to 'any' either.
+// bio_vi / bio_en are never downgraded either: COALESCE(EXCLUDED.bio_vi,
+// existing) preserves the first bio we ever stored.
+//
+// Every item is sanitized up-front and inserted individually inside try/catch
+// so ONE malformed record can never abort the whole batch or crash the
+// function with a Postgres parameter error. Returns { success, upserted,
+// errors } so the caller can verify persistence in the browser console.
 export async function upsertDiscoveredCharacters(characters) {
-  if (!Array.isArray(characters) || !characters.length) return 0;
-  const clean = characters.filter(c => c && c.char_key).slice(0, 60);
-  if (!clean.length) return 0;
+  if (!Array.isArray(characters) || !characters.length) {
+    return { success: true, upserted: 0, errors: [] };
+  }
+  const clean = characters
+    .map(sanitizeDiscoveredChar)
+    .filter(Boolean)
+    .slice(0, 60);
+  if (!clean.length) {
+    return { success: true, upserted: 0, errors: [] };
+  }
 
   if (!sql) {
     let n = 0;
@@ -421,39 +498,49 @@ export async function upsertDiscoveredCharacters(characters) {
       fallbackStore.discoveredCharacters.set(key, merged);
       n++;
     }
-    return n;
+    return { success: true, upserted: n, errors: [] };
   }
 
   await ensureTables();
 
-  const values = clean.map(c => sql`(
-    ${c.char_key},
-    ${c.name || ''},
-    ${c.en_title || null},
-    ${c.universe || 'historical'},
-    ${c.country || 'any'},
-    ${c.gender || 'any'},
-    ${c.ethnicity || 'any'},
-    ${c.religion || 'any'},
-    ${c.era_year != null ? Number(c.era_year) : null},
-    ${c.target_role || null},
-    ${c.bio_vi || null},
-    ${c.bio_en || null},
-    ${c.img_url || null},
-    ${c.source_wiki || 'wiki'}
-  )`);
+  let upserted = 0;
+  const errors = [];
+  for (const c of clean) {
+    try {
+      await sql`
+        INSERT INTO discovered_characters (
+          char_key, name, en_title, universe, country, gender, ethnicity, religion,
+          era_year, target_role, bio_vi, bio_en, img_url, source_wiki
+        ) VALUES (
+          ${c.char_key},
+          ${c.name},
+          ${c.en_title},
+          ${c.universe},
+          ${c.country},
+          ${c.gender},
+          ${c.ethnicity},
+          ${c.religion},
+          ${c.era_year},
+          ${c.target_role},
+          ${c.bio_vi},
+          ${c.bio_en},
+          ${c.img_url},
+          ${c.source_wiki}
+        )
+        ON CONFLICT (char_key) DO UPDATE SET
+          img_url = COALESCE(EXCLUDED.img_url, discovered_characters.img_url),
+          country = COALESCE(NULLIF(EXCLUDED.country, 'any'), discovered_characters.country),
+          bio_vi = COALESCE(EXCLUDED.bio_vi, discovered_characters.bio_vi),
+          bio_en = COALESCE(EXCLUDED.bio_en, discovered_characters.bio_en),
+          updated_at = CURRENT_TIMESTAMP
+      `;
+      upserted++;
+    } catch (err) {
+      errors.push(`${c.char_key}: ${err.message || String(err)}`);
+    }
+  }
 
-  const result = await sql`
-    INSERT INTO discovered_characters (
-      char_key, name, en_title, universe, country, gender, ethnicity, religion,
-      era_year, target_role, bio_vi, bio_en, img_url, source_wiki
-    ) VALUES ${values}
-    ON CONFLICT (char_key) DO UPDATE SET
-      img_url = COALESCE(EXCLUDED.img_url, discovered_characters.img_url),
-      country = COALESCE(NULLIF(EXCLUDED.country, 'any'), discovered_characters.country),
-      updated_at = CURRENT_TIMESTAMP
-  `;
-  return values.length;
+  return { success: true, upserted, errors };
 }
 
 export async function trackCardExport(cardId, userId = null) {
