@@ -48,6 +48,7 @@ export async function ensureTables() {
             ethnicity TEXT,
             religion TEXT,
             story_json JSONB,
+            img_url TEXT,
             is_exported BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
@@ -58,6 +59,12 @@ export async function ensureTables() {
         // Add user_name column if it doesn't exist (for migrations).
         try {
           await sql`ALTER TABLE user_resources ADD COLUMN IF NOT EXISTS user_name VARCHAR(200) DEFAULT '';`;
+        } catch (e) {}
+
+        // Add img_url column to user_cards if it doesn't exist (for migrations),
+        // so cards reloaded from the DB always keep their portrait.
+        try {
+          await sql`ALTER TABLE user_cards ADD COLUMN IF NOT EXISTS img_url TEXT;`;
         } catch (e) {}
 
         // Persistent Neon Character Pool — every discovered Wikipedia & Fandom
@@ -200,7 +207,7 @@ export async function getUserCards(userId) {
   await ensureTables();
 
   const result = await sql`
-    SELECT card_id, user_id, target_name, target_role, rarity, era, ethnicity, religion, story_json, is_exported, created_at
+    SELECT card_id, user_id, target_name, target_role, rarity, era, ethnicity, religion, story_json, img_url, is_exported, created_at
     FROM user_cards
     WHERE user_id = ${userId}
     ORDER BY created_at DESC;
@@ -218,13 +225,21 @@ export async function insertUserCard({
   era,
   ethnicity,
   religion,
-  story_json
+  story_json,
+  img_url
 }) {
   const cardId = card_id || ('crd_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substring(2, 8))));
 
   if (!sql) {
     // Also ensure user_resources exists
     await getUserResources(user_id);
+    // Normalize story_json to an object so reads are consistent with the
+    // Neon jsonb path (which returns a parsed object).
+    let storyObj = story_json;
+    if (typeof storyObj === 'string') {
+      try { storyObj = storyObj ? JSON.parse(storyObj) : {}; } catch (e) { storyObj = {}; }
+    }
+    storyObj = storyObj || {};
     const cardRecord = {
       card_id: cardId,
       user_id,
@@ -234,7 +249,8 @@ export async function insertUserCard({
       era: era || '',
       ethnicity: ethnicity || '',
       religion: religion || '',
-      story_json: story_json || {},
+      story_json: storyObj,
+      img_url: img_url || '',
       is_exported: false,
       created_at: new Date().toISOString()
     };
@@ -243,8 +259,13 @@ export async function insertUserCard({
   }
 
   await ensureTables();
-  // Ensure user exists first
-  await getUserResources(user_id);
+  // ALWAYS ensure the parent user row exists before inserting into user_cards,
+  // so user_cards_user_id_fkey can NEVER fail with HTTP 500.
+  await sql`
+    INSERT INTO user_resources (user_id, user_name, gems)
+    VALUES (${user_id}, '', 1600)
+    ON CONFLICT (user_id) DO NOTHING;
+  `;
 
   const jsonStr = typeof story_json === 'string' ? story_json : JSON.stringify(story_json || {});
 
@@ -259,6 +280,7 @@ export async function insertUserCard({
       ethnicity,
       religion,
       story_json,
+      img_url,
       is_exported,
       created_at
     ) VALUES (
@@ -271,6 +293,7 @@ export async function insertUserCard({
       ${ethnicity || ''},
       ${religion || ''},
       ${jsonStr}::jsonb,
+      ${img_url || null},
       FALSE,
       CURRENT_TIMESTAMP
     )
@@ -281,7 +304,8 @@ export async function insertUserCard({
       era = EXCLUDED.era,
       ethnicity = EXCLUDED.ethnicity,
       religion = EXCLUDED.religion,
-      story_json = EXCLUDED.story_json;
+      story_json = EXCLUDED.story_json,
+      img_url = COALESCE(EXCLUDED.img_url, user_cards.img_url);
   `;
 
   return cardId;

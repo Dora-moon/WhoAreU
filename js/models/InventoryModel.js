@@ -96,6 +96,7 @@ export class InventoryModel {
 
       const payload = {
         userId,
+        userName: (profile && (profile.uName || profile.user_name)) || '',
         cardId: entry.card_id || entry.id,
         targetName: card.name || (entry.st && entry.st.en && entry.st.en.headline) || 'Unknown Figure',
         targetRole: (profile && (profile.uRoleCustom || profile.uRole)) || 'Traveler',
@@ -103,6 +104,7 @@ export class InventoryModel {
         era: card.birth != null ? `${card.birth} - ${card.death || 'present'}` : (profile && profile.era ? String(profile.era) : ''),
         ethnicity: (profile && (profile.ethnicityCustom || profile.ethnicity)) || card.countryId || 'any',
         religion: (profile && profile.religion) || 'any',
+        img_url: card.img || entry.imgUrl || entry.img || null,
         storyJson: {
           card: entry.card,
           st: entry.st,
@@ -118,9 +120,10 @@ export class InventoryModel {
 
       if (!resp.ok) return null;
       const data = await resp.json();
-      if (data && data.success && data.card_id) {
-        entry.card_id = data.card_id;
-        entry.id = data.card_id;
+      if (data && data.success && (data.card_id || data.cardId)) {
+        const newId = data.card_id || data.cardId;
+        entry.card_id = newId;
+        entry.id = newId;
         this._save();
       }
       return data;
@@ -168,7 +171,7 @@ export class InventoryModel {
           countryId: row.ethnicity || 'any',
           desc: '',
           summary: '',
-          img: '',
+          img: row.img_url || storyJson.img || '',
           tier: row.rarity || 'common',
           score: 80,
           source: 'wiki'

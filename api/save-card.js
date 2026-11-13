@@ -15,42 +15,62 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = req.body || {};
-    const userId = body.userId || body.user_id;
-
-    if (!userId) {
-      return res.status(400).json({ success: false, error: 'Missing userId in request body' });
+    // Parse body safely (Vercel may deliver a JSON string or a parsed object).
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = body ? JSON.parse(body) : {};
+      } catch (e) {
+        return res.status(400).json({ success: false, error: 'Invalid JSON body' });
+      }
     }
+    body = body || {};
 
-    const cardId = body.cardId || body.card_id || body.id;
-    const targetName = body.targetName || body.target_name || (body.card && body.card.name) || '';
-    const targetRole = body.targetRole || body.target_role || '';
-    const rarity = body.rarity || body.tier || (body.card && body.card.tier) || 'common';
-    const era = body.era || (body.card && (body.card.birth != null ? `${body.card.birth} - ${body.card.death || 'present'}` : '')) || '';
-    const ethnicity = body.ethnicity || (body.card && body.card.countryId) || '';
-    const religion = body.religion || '';
+    // Accept all field aliases (camelCase or snake_case) and sanitize values.
+    const userId = body.userId || body.user_id || 'guest';
+    const userName = String(body.userName || body.user_name || '').slice(0, 95);
+    const targetName = String(body.targetName || body.target_name || body.name || 'Unknown').slice(0, 240);
+    const targetRole = (body.targetRole || body.target_role)
+      ? String(body.targetRole || body.target_role).slice(0, 240)
+      : null;
+    const rarity = String(body.rarity || 'common').slice(0, 45);
+    const era = body.era ? String(body.era).slice(0, 95) : null;
+    const ethnicity = body.ethnicity ? String(body.ethnicity).slice(0, 95) : null;
+    const religion = body.religion ? String(body.religion).slice(0, 95) : null;
+    const img = body.imgUrl || body.img_url || (body.card && body.card.img) || null;
+
+    // Build storyJson and ensure the image URL is embedded so cards reloaded
+    // from user_cards always keep their portrait.
     const storyJson = body.storyJson || body.story_json || body.st || {
       card: body.card,
       st: body.st,
       absurd: body.absurd
     };
+    if (storyJson && typeof storyJson === 'object' && !Array.isArray(storyJson)) {
+      if (img) storyJson.img = img;
+    }
+
+    // Ensure valid JSON string cast cleanly to ::jsonb.
+    const storyJsonStr = JSON.stringify(storyJson || {});
 
     const newCardId = await insertUserCard({
-      card_id: cardId,
+      card_id: body.cardId || body.card_id || body.id,
       user_id: userId,
+      user_name: userName,
       target_name: targetName,
       target_role: targetRole,
       rarity: rarity,
       era: era,
       ethnicity: ethnicity,
       religion: religion,
-      story_json: storyJson
+      img_url: img,
+      story_json: storyJsonStr
     });
 
     return res.status(200).json({
       success: true,
-      card_id: newCardId,
-      cardId: newCardId
+      cardId: newCardId,
+      card_id: newCardId
     });
   } catch (err) {
     console.error('[/api/save-card] Error:', err);

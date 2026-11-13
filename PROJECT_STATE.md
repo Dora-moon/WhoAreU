@@ -424,6 +424,33 @@ All `.js` files in `js/` pass `node --check`:
 
 ---
 
+### FIX POST /api/save-card HTTP 500 & USER_CARDS PERSISTENCE FLOW (2026-11-13)
+
+In production, `POST /api/save-card` from `InventoryModel.js` was returning HTTP 500, preventing rolled cards from being saved into `user_cards` in Neon Postgres.
+
+#### Root causes fixed
+1. **Foreign key failure (`user_cards_user_id_fkey`)** — `insertUserCard` relied on `getUserResources()` to create the parent `user_resources` row, which could race or skip, so the `user_cards` insert failed with a 500.
+2. **Payload parsing** — `req.body` could arrive as a raw JSON string on Vercel; the handler now parses it safely and returns 400 on invalid JSON instead of a 500.
+3. **Field aliases** — the handler now accepts both `camelCase` and `snake_case` keys (`userId`/`user_id`, `targetName`/`target_name`, etc.) and sanitizes all values with length caps.
+4. **Missing portrait column** — `user_cards` had no `img_url` column, so cards reloaded from the DB lost their portrait.
+
+#### Changes
+- **`api/save-card.js`** — safe body parsing; flexible alias extraction with sanitization; embeds `img` into `storyJson.img`; passes `img_url` to `insertUserCard`; returns `{ success: true, cardId, card_id }`.
+- **`api/_db.js`** — `ensureTables()` now `CREATE TABLE IF NOT EXISTS user_cards ... img_url TEXT` and `ALTER TABLE user_cards ADD COLUMN IF NOT EXISTS img_url TEXT` (migration-safe); `getUserCards()` selects `img_url`; `insertUserCard()` accepts `img_url`, **always** runs `INSERT INTO user_resources (user_id, user_name, gems) VALUES (...) ON CONFLICT (user_id) DO NOTHING` before the card insert, and `ON CONFLICT (card_id) DO UPDATE SET ... img_url = COALESCE(EXCLUDED.img_url, user_cards.img_url)`; fallback store normalizes `story_json` to a parsed object.
+- **`js/models/InventoryModel.js`** — `saveCardToRemote()` now sends `userName`, `img_url` (from `card.img`/`entry.imgUrl`/`entry.img`), and updates the local entry's `card_id`/`id` from the response so subsequent `POST /api/track-export` hits the exact row; `syncFromRemoteCards()` maps `row.img_url` → `card.img` so saved cards keep their portrait after reload.
+
+#### Verification
+- `node --check` passes on `api/save-card.js`, `api/_db.js`, `api/sync-state.js`, `api/track-export.js`, `api/character-pool.js`, `js/models/InventoryModel.js`, `js/models/UserProfileModel.js`.
+- End-to-end test (built-in `fallbackStore`, no `DATABASE_URL` needed) confirms:
+  - `POST /api/save-card` → 200, returns `{ success: true, cardId, card_id }`.
+  - `GET /api/sync-state?userId=...` → 200, returns the saved card with `target_name`, `rarity`, `img_url`, and `story_json.img` all persisted.
+  - `POST` with snake_case aliases + nulls → 200.
+  - `POST` with missing `userId` → 200 (defaults to `'guest'`).
+  - `POST` with invalid JSON body → 400.
+  - `OPTIONS` → 200; `GET` → 405.
+
+---
+
 ### All-in-One Fix (2026-11-12): 10X Pity Lockup, ~195 Searchable Countries, 5x Character Pool, Story-Integrated Mini-Games
 
 #### 1. FIX 10X Multi-Pull Soft-Lock / Hang at Pity >= 6 — `GachaModel.js` & `GachaController.js`
