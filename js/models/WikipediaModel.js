@@ -804,13 +804,20 @@ export class WikipediaModel {
           //    runs first and never blocks on live Wikipedia.
           const dbCards = await this._fetchCharacterPoolFromDB(inputs);
 
-          // 2. Run a non-blocking background Wikipedia + Fandom harvester
-          //    (max 3-4 requests, randomized gsroffset 0-45) that POSTs newly
-          //    discovered characters to /api/character-pool. Fire-and-forget —
-          //    it must never stall the spin animation.
-          this._runBackgroundHarvester(inputs).catch(() => {});
+          // 2. If the persistent pool has < 40 characters, ALWAYS trigger
+          //    the background harvester immediately (even on initial page load!)
+          //    to populate the pool with fresh Wikipedia + Fandom characters.
+          if (dbCards.length < 40) {
+            this._runBackgroundHarvester(inputs).catch(() => {});
+          } else {
+            // 3. Run a non-blocking background Wikipedia + Fandom harvester
+            //    (max 3-4 requests, randomized gsroffset 0-45) that POSTs newly
+            //    discovered characters to /api/character-pool. Fire-and-forget —
+            //    it must never stall the spin animation.
+            this._runBackgroundHarvester(inputs).catch(() => {});
+          }
 
-          // 3. Merge: DB pool first (already image-verified), then live pool
+          // 4. Merge: DB pool first (already image-verified), then live pool
           //    fetched WITHOUT resolving images (avoids 429 floods).
           let pool = dbCards;
           try {
@@ -921,10 +928,14 @@ export class WikipediaModel {
           // Also merge into the local rotating cache so the next spin
           // benefits without another DB round-trip.
           this._mergeDiscovered(fresh);
-          console.log(`[WikipediaModel] Background harvester persisted ${j.upserted} new characters`);
+          console.log(`[Harvester] Uploaded ${j.upserted} chars`);
         }
+      } else {
+        const errText = await resp.text().catch(() => '');
+        console.error('[Harvester] Upload failed:', resp.status, errText);
       }
     } catch (e) {
+      console.error('[Harvester] Upload error:', e);
       // Fire-and-forget — never stall the spin.
     }
   }
@@ -964,6 +975,12 @@ export class WikipediaModel {
           const live = this._prefetchPool.filter(c => c && c.title && !seen.has(c.title));
           this._prefetchPool = [...dbCards, ...live];
           this._prefetchFilterKey = filterKey;
+        }
+        // If the persistent pool has < 40 characters, ALWAYS trigger
+        // the background harvester immediately (even on initial page load!)
+        // to populate the pool with fresh Wikipedia + Fandom characters.
+        if (dbCards.length < 40) {
+          this._runBackgroundHarvester(inputs).catch(() => {});
         }
       } catch (e) {
         // DB unreachable — fall back to the warm live pool below.

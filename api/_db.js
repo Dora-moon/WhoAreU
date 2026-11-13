@@ -228,7 +228,9 @@ export async function insertUserCard({
   story_json,
   img_url
 }) {
-  const cardId = card_id || ('crd_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substring(2, 8))));
+  // Generate a valid card_id if not provided or if provided one is not a valid integer-like string
+  const providedCardId = card_id;
+  const cardId = providedCardId && /^\d+$/.test(String(providedCardId)) ? String(providedCardId) : ('crd_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substring(2, 8))));
 
   if (!sql) {
     // Also ensure user_resources exists
@@ -267,46 +269,90 @@ export async function insertUserCard({
     ON CONFLICT (user_id) DO NOTHING;
   `;
 
+  // Ensure img_url column exists (migration-safe)
+  try {
+    await sql`ALTER TABLE user_cards ADD COLUMN IF NOT EXISTS img_url TEXT;`;
+  } catch (e) {
+    // ignore if already exists or any other error
+  }
+
   const jsonStr = typeof story_json === 'string' ? story_json : JSON.stringify(story_json || {});
 
-  await sql`
-    INSERT INTO user_cards (
-      card_id,
-      user_id,
-      target_name,
-      target_role,
-      rarity,
-      era,
-      ethnicity,
-      religion,
-      story_json,
-      img_url,
-      is_exported,
-      created_at
-    ) VALUES (
-      ${cardId},
-      ${user_id},
-      ${target_name || ''},
-      ${target_role || ''},
-      ${rarity || 'common'},
-      ${era || ''},
-      ${ethnicity || ''},
-      ${religion || ''},
-      ${jsonStr}::jsonb,
-      ${img_url || null},
-      FALSE,
-      CURRENT_TIMESTAMP
-    )
-    ON CONFLICT (card_id) DO UPDATE SET
-      target_name = EXCLUDED.target_name,
-      target_role = EXCLUDED.target_role,
-      rarity = EXCLUDED.rarity,
-      era = EXCLUDED.era,
-      ethnicity = EXCLUDED.ethnicity,
-      religion = EXCLUDED.religion,
-      story_json = EXCLUDED.story_json,
-      img_url = COALESCE(EXCLUDED.img_url, user_cards.img_url);
-  `;
+  // If a valid integer card_id was provided, do upsert; otherwise insert new without card_id in conflict
+  if (providedCardId && /^\d+$/.test(String(providedCardId))) {
+    await sql`
+      INSERT INTO user_cards (
+        card_id,
+        user_id,
+        target_name,
+        target_role,
+        rarity,
+        era,
+        ethnicity,
+        religion,
+        story_json,
+        img_url,
+        is_exported,
+        created_at
+      ) VALUES (
+        ${cardId},
+        ${user_id},
+        ${target_name || ''},
+        ${target_role || ''},
+        ${rarity || 'common'},
+        ${era || ''},
+        ${ethnicity || ''},
+        ${religion || ''},
+        ${jsonStr}::jsonb,
+        ${img_url || null},
+        FALSE,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (card_id) DO UPDATE SET
+        target_name = EXCLUDED.target_name,
+        target_role = EXCLUDED.target_role,
+        rarity = EXCLUDED.rarity,
+        era = EXCLUDED.era,
+        ethnicity = EXCLUDED.ethnicity,
+        religion = EXCLUDED.religion,
+        story_json = EXCLUDED.story_json,
+        img_url = COALESCE(EXCLUDED.img_url, user_cards.img_url);
+    `;
+  } else {
+    // New card: insert without card_id in VALUES, let SERIAL/auto generate, return card_id
+    const result = await sql`
+      INSERT INTO user_cards (
+        user_id,
+        target_name,
+        target_role,
+        rarity,
+        era,
+        ethnicity,
+        religion,
+        story_json,
+        img_url,
+        is_exported,
+        created_at
+      ) VALUES (
+        ${user_id},
+        ${target_name || ''},
+        ${target_role || ''},
+        ${rarity || 'common'},
+        ${era || ''},
+        ${ethnicity || ''},
+        ${religion || ''},
+        ${jsonStr}::jsonb,
+        ${img_url || null},
+        FALSE,
+        CURRENT_TIMESTAMP
+      )
+      RETURNING card_id;
+    `;
+    const rows = getRows(result);
+    if (rows && rows.length > 0 && rows[0].card_id) {
+      return String(rows[0].card_id);
+    }
+  }
 
   return cardId;
 }

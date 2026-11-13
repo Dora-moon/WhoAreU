@@ -74,6 +74,11 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('[/api/save-card] Error:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+      code: err.code || null,
+      detail: err.detail || null
+    });
   }
 }

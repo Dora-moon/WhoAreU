@@ -118,7 +118,11 @@ export class InventoryModel {
         body: JSON.stringify(payload)
       });
 
-      if (!resp.ok) return null;
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        console.error('[InventoryModel] save-card failed:', resp.status, errText);
+        return null;
+      }
       const data = await resp.json();
       if (data && data.success && (data.card_id || data.cardId)) {
         const newId = data.card_id || data.cardId;
