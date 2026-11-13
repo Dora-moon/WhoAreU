@@ -12,6 +12,100 @@ export const DEF_MODELS = {
   claude: 'claude-3-5-haiku-20241022'
 };
 
+// Story Tone configs — each tone rewrites the narrator's voice, chapter framing,
+// and the Butterfly Effect choice flavour. Used by both the LLM prompt and the
+// offline template engine so the tone is consistent even without an API key.
+export const STORY_TONE_CONFIG = {
+  comedy: {
+    label: 'Comedy & Absurd',
+    voice: 'wacky, deadpan, sitcom energy; punchlines land on the historical facts',
+    ch1: 'a bumbling first meeting where the protagonist trips into the target\'s orbit',
+    ch2: 'a farcical misunderstanding that accidentally nudges history',
+    ch3: 'the ridiculous revelation — the famous event happened because of a silly mistake',
+    choice: 'a piece of hilariously bad advice',
+    item: 'a gag cursed item'
+  },
+  epic: {
+    label: 'Epic & Heroic',
+    voice: 'grand, mythic, cinematic; sentences build like drumbeats toward destiny',
+    ch1: 'a fated convergence under storm-lit skies, two titans of destiny meeting',
+    ch2: 'a trial of resolve that forges the legend',
+    ch3: 'the majestic revelation — the target\'s triumph was written in the stars',
+    choice: 'a bold, heroic gamble',
+    item: 'a legendary relic'
+  },
+  tragic: {
+    label: 'Tragic & Melancholic',
+    voice: 'somber, bittersweet, elegiac; the cost of history is felt in every line',
+    ch1: 'a quiet, sorrowful encounter on the edge of a turning point',
+    ch2: 'a heavy choice that leaves an invisible scar on both of them',
+    ch3: 'the heartbreaking revelation — the target\'s sacrifice was the price of the event',
+    choice: 'a desperate attempt to soften the blow',
+    item: 'a mourning keepsake'
+  },
+  mystery: {
+    label: 'Mystery & Thriller',
+    voice: 'tense, suspenseful, noir-ish; clues are dropped like breadcrumbs',
+    ch1: 'a shadowy first contact where nothing is quite what it seems',
+    ch2: 'a web of secrets and red herrings tightening around the target',
+    ch3: 'the chilling revelation — the event was engineered by an unseen hand',
+    choice: 'a risky, covert move',
+    item: 'a cryptic evidence piece'
+  }
+};
+
+// Tone-specific sentence fragments layered on top of the base STORY_TEMPLATES.
+// Each tone keeps the same 3-chapter / 3-choice skeleton but swaps the
+// narrator's voice, the choice flavour, and the closing revelation.
+// One-sentence tone prefixes prepended to ch1 in the offline template engine.
+export const TONE_EN_PREFIX = {
+  comedy: 'The narrator grins: ',
+  epic: 'The narrator booms: ',
+  tragic: 'The narrator whispers, heavy with sorrow: ',
+  mystery: 'The narrator murmurs, eyes narrowed: '
+};
+export const TONE_VI_PREFIX = {
+  comedy: 'Người kể chuyện mỉm cười: ',
+  epic: 'Người kể chuyện vang lên, như sấm: ',
+  tragic: 'Người kể thì thầm, nặng nề bởi nỗi tiếc: ',
+  mystery: 'Người kể thì thầm, mắt narrowed: '
+};
+
+export const STORY_TONE_FRAGMENTS = {
+  comedy: {
+    voice: 'The narrator is a deadpan sitcom host who treats every historical milestone like a punchline.',
+    ch1: 'The protagonist tumbles into the target\'s orbit with the grace of a drunk accordion.',
+    ch2: 'A farcical mix-up of labels, borrowed hats, and one very confused raccoon.',
+    ch3: 'The famous event happened because of a silly, well-meant mistake.',
+    choice: 'a hilariously bad piece of advice',
+    item: 'a gag cursed item'
+  },
+  epic: {
+    voice: 'The narrator is a mythic bard; every sentence is a drumbeat toward destiny.',
+    ch1: 'Two titans of destiny converge under storm-lit skies in a fated meeting.',
+    ch2: 'A trial of resolve forges the legend against impossible odds.',
+    ch3: 'The target\'s triumph was written in the stars by a bold, heroic gamble.',
+    choice: 'a bold, heroic gamble',
+    item: 'a legendary relic'
+  },
+  tragic: {
+    voice: 'The narrator is an elegiac chronicler; every line carries the weight of what is lost.',
+    ch1: 'A quiet, sorrowful encounter on the edge of a great turning point.',
+    ch2: 'A heavy choice leaves an invisible scar on both of them.',
+    ch3: 'The target\'s sacrifice was the price of the famous event.',
+    choice: 'a desperate attempt to soften the blow',
+    item: 'a mourning keepsake'
+  },
+  mystery: {
+    voice: 'The narrator is a noir-ish detective dropping clues like breadcrumbs.',
+    ch1: 'A shadowy first contact where nothing is quite what it seems.',
+    ch2: 'A web of secrets and red herrings tightens around the target.',
+    ch3: 'The event was engineered by an unseen hand — and the clues were there all along.',
+    choice: 'a risky, covert move',
+    item: 'a cryptic evidence piece'
+  }
+};
+
 export const STORY_TEMPLATES = {
   en: {
     head: [
@@ -296,6 +390,9 @@ export class StoryModel {
     const rk = inp.roleKey === 'random'
       ? ['advisor', 'chaos', 'nemesis', 'bystander', 'scammer', 'roommate'][Math.floor(Math.random() * 6)]
       : inp.roleKey;
+    const tone = (userProfileModel && typeof userProfileModel.getStoryTone === 'function')
+      ? userProfileModel.getStoryTone()
+      : 'comedy';
     const band = inp.absurd <= 24 ? 0 : inp.absurd <= 74 ? 1 : 2;
     const v = {};
 
@@ -358,23 +455,42 @@ export class StoryModel {
       };
     }
 
-    return { band, v, inp, card, roleKey: rk };
+    return { band, v, inp, card, roleKey: rk, tone };
+  }
+
+  tonePrefix(tone, L) {
+    const F = STORY_TONE_FRAGMENTS[tone] || STORY_TONE_FRAGMENTS.comedy;
+    return L === 'vi'
+      ? (TONE_VI_PREFIX[tone] || '')
+      : (TONE_EN_PREFIX[tone] || '');
+  }
+
+  _toneCh1Prefix(tone, L) {
+    return (L === 'vi' ? TONE_VI_PREFIX : TONE_EN_PREFIX)[tone] || '';
   }
 
   offlineStory(X) {
     const b = X.band;
     const v1 = Math.floor(Math.random() * 2);
     const v2 = Math.floor(Math.random() * 2);
+    const tone = X.tone || 'comedy';
     const out = {};
 
     for (const L of ['en', 'vi']) {
       const V = X.v[L];
       const Tp = STORY_TEMPLATES[L];
       const f = s => this.fill(s, V);
+      const tp = this._toneCh1Prefix(tone, L);
+
+      // Single-paragraph 3-4 sentence intro (concise, one block, no bullets)
+      const intro = f(L === 'en'
+        ? 'A {role} named {n} ({who}) has just stepped through a rip in the timeline and landed in {t}\'s world ({target_role}, {bc}). The order slip was simple: meet the target, watch history happen, and stay out of the way. But the universe had other plans.'
+        : 'Một {role} tên {n} ({who}) vừa bước qua một khe rạn thời gian và xuất hiện trong thế giới của {t} ({target_role}, {bc}). Phiếu triệu hồi rất đơn giản: gặp người mục tiêu, quan sát lịch sử xảy ra, và đừng can thiệp. Nhưng vũ trụ có ý khác.');
 
       out[L] = {
         headline: f(Tp.head[b]),
-        ch1: f(Tp.ch1[b][v1]),
+        intro,
+        ch1: tp + f(Tp.ch1[b][v1]),
         ch2: f(Tp.ch2[b][v2]),
         choices: [0, 1, 2].map(i => ({
           text: f(Tp.ch[b][i]),
@@ -475,7 +591,8 @@ export class StoryModel {
   }
 
   async llmStory(X, userProfileModel) {
-    const { inp, card } = X;
+    const { inp, card, v, tone } = X;
+    const toneConfig = STORY_TONE_CONFIG[tone] || STORY_TONE_CONFIG.comedy;
     const bands = [
       '0-24 = strictly grounded in the real biography; invent nothing about the target',
       '25-74 = time-travel comedy with ironic twists and chaotic synergy',
@@ -502,11 +619,14 @@ export class StoryModel {
       user_name: inp.name,
       user_role: `${X.v.en.role} (VI: ${X.v.vi.role})`,
       user_hobbies: inp.hobbies || 'professional napping',
-      absurdity_percent: inp.absurd
+      absurdity_percent: inp.absurd,
+      story_tone: toneConfig.label,
+      tone_voice: toneConfig.voice
     };
 
-    const prompt = `You are the narrator of "Live Wikipedia Gacha", a comedic historical story engine.
+    const prompt = `You are the narrator of "Live Wikipedia Gacha", a historical story engine.
 Write the SAME story in BOTH English and Vietnamese (natural, fluent Vietnamese).
+Story Tone: ${toneConfig.label} — ${toneConfig.voice}
 Absurdity level: ${inp.absurd}/100 → ${bandDesc}.
 
 STANDARDIZED INPUT PAYLOAD:
@@ -516,10 +636,17 @@ ORDER SLIP FLAVOR: ${tg}, era "${eraLabel}", ethnicity "${ethnicityLabel}", reli
 
 MISSION & STORYTELLING DIRECTIVE:
 You MUST actively incorporate the target's specific cultural, historical era, ethnicity/heritage, and religious background elements ({ target_role, era, target_ethnicity, target_religion }) into the 3-Chapter story plot and the 3 interactive Butterfly Effect choices.
-Highlight the comedic clash or eccentric alliance between the user's role ("${X.v.vi.role}") and the historical target's role ("${targetRole}"), set in the context of their era (${eraLabel}) and beliefs (${religionLabel}).
+Highlight the clash or alliance between the user's role ("${X.v.vi.role}") and the historical target's role ("${targetRole}"), set in the context of their era (${eraLabel}) and beliefs (${religionLabel}).
+
+NARRATOR VOICE: ${toneConfig.voice}
+CHAPTER 1 FLAVOUR: ${toneConfig.ch1}
+CHAPTER 2 FLAVOUR: ${toneConfig.ch2}
+CHAPTER 3 REVELATION FLAVOUR: ${toneConfig.ch3}
+BUTTERFLY EFFECT CHOICES: Each is ${toneConfig.choice}
+CURSED ITEMS: Each is ${toneConfig.item}
 
 RULES: Keep real facts about the target faithful to the summary. Be respectful: never mock anyone's gender, skin colour, ethnicity, nationality or disability. No sexual or graphic violent content. Use "they" for the target if unsure.
-STRUCTURE: ch1 = "The Fateful Encounter" (how the protagonist in their role met the target in their era/cultural context, 70-100 words). ch2 = "The Historical Misadventure" (chaos mixing the target's real achievements with the protagonist's age, gender and weird habit, 80-110 words). choices = exactly 3 DISTINCT "bad advice" actions the protagonist could give the target before the climax (text ≤ 16 words, weaving in the cultural/religious/era flavor). For each choice, ch3 = "The Secret Wiki Revelation" (60-90 words) revealing that the famous event on the target's Wikipedia page happened because of THAT advice; plus item = a funny "Cursed Item" {name, desc (one line)}. Keep the choices in the same order in both languages.
+STRUCTURE: ch1 = "The Fateful Encounter" (how the protagonist in their role met the target in their era/cultural context, 70-100 words). ch2 = "The Historical Misadventure" (chaos mixing the target's real achievements with the protagonist's age, gender and weird habit, 80-110 words). choices = exactly 3 DISTINCT "bad advice" actions the protagonist could give the target before the climax (text ≤ 16 words, weaving in the cultural/religious/era flavor). For each choice, ch3 = "The Secret Wiki Revelation" (60-90 words) revealing that the famous event on the target's Wikipedia page happened because of THAT advice; plus item = a "Cursed Item" {name, desc (one line)}. Keep the choices in the same order in both languages.
 Return ONLY valid JSON, no markdown:
 {"en":{"headline":"newspaper headline","ch1":"","ch2":"","choices":[{"text":"","ch3":"","item":{"name":"","desc":""}},{...},{...}]},"vi":{same structure in Vietnamese}}`;
 

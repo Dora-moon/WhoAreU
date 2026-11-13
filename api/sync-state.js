@@ -26,6 +26,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         userId: resources.user_id,
+        user_name: resources.user_name || '',
         gems: resources.gems,
         pity_counter: resources.pity_counter,
         pityCounter: resources.pity_counter,
@@ -45,12 +46,14 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Missing userId in request body' });
       }
 
+      const user_name = body.user_name;
       const gems = body.gems;
       const pity_counter = body.pity_counter !== undefined ? body.pity_counter : body.pityCounter;
       const total_spins = body.total_spins !== undefined ? body.total_spins : body.totalSpins;
       const total_exports = body.total_exports !== undefined ? body.total_exports : body.totalExports;
 
       const updated = await updateUserResources(userId, {
+        user_name,
         gems,
         pity_counter,
         total_spins,
@@ -60,6 +63,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         userId: updated.user_id,
+        user_name: updated.user_name || '',
         gems: updated.gems,
         pity_counter: updated.pity_counter,
         pityCounter: updated.pity_counter,

@@ -27,6 +27,7 @@ export async function ensureTables() {
         await sql`
           CREATE TABLE IF NOT EXISTS user_resources (
             user_id VARCHAR(100) PRIMARY KEY,
+            user_name VARCHAR(200) DEFAULT '',
             gems INTEGER NOT NULL DEFAULT 1600,
             pity_counter INTEGER NOT NULL DEFAULT 0,
             total_spins INTEGER NOT NULL DEFAULT 0,
@@ -53,6 +54,10 @@ export async function ensureTables() {
         await sql`
           CREATE INDEX IF NOT EXISTS idx_user_cards_user_id ON user_cards (user_id);
         `;
+        // Add user_name column if it doesn't exist (for migrations).
+        try {
+          await sql`ALTER TABLE user_resources ADD COLUMN IF NOT EXISTS user_name VARCHAR(200) DEFAULT '';`;
+        } catch (e) {}
       } catch (err) {
         console.error('[DB] ensureTables error:', err);
       }
@@ -67,6 +72,7 @@ export async function getUserResources(userId, defaultGems = 1600) {
     if (!fallbackStore.resources.has(userId)) {
       fallbackStore.resources.set(userId, {
         user_id: userId,
+        user_name: '',
         gems: defaultGems,
         pity_counter: 0,
         total_spins: 0,
@@ -81,7 +87,7 @@ export async function getUserResources(userId, defaultGems = 1600) {
   await ensureTables();
 
   const result = await sql`
-    SELECT user_id, gems, pity_counter, total_spins, total_exports, created_at, updated_at
+    SELECT user_id, user_name, gems, pity_counter, total_spins, total_exports, created_at, updated_at
     FROM user_resources
     WHERE user_id = ${userId}
     LIMIT 1;
@@ -94,21 +100,22 @@ export async function getUserResources(userId, defaultGems = 1600) {
 
   // If userId does not exist, initialize with default starting Gems
   const initRes = await sql`
-    INSERT INTO user_resources (user_id, gems, pity_counter, total_spins, total_exports)
-    VALUES (${userId}, ${defaultGems}, 0, 0, 0)
+    INSERT INTO user_resources (user_id, user_name, gems, pity_counter, total_spins, total_exports)
+    VALUES (${userId}, '', ${defaultGems}, 0, 0, 0)
     ON CONFLICT (user_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
-    RETURNING user_id, gems, pity_counter, total_spins, total_exports, created_at, updated_at;
+    RETURNING user_id, user_name, gems, pity_counter, total_spins, total_exports, created_at, updated_at;
   `;
   const initRows = getRows(initRes);
 
   return initRows[0];
 }
 
-export async function updateUserResources(userId, { gems, pity_counter, total_spins, total_exports }) {
+export async function updateUserResources(userId, { user_name, gems, pity_counter, total_spins, total_exports }) {
   if (!userId) return null;
 
   if (!sql) {
     const current = await getUserResources(userId);
+    if (user_name !== undefined && user_name !== null) current.user_name = String(user_name);
     if (gems !== undefined && gems !== null) current.gems = Number(gems);
     if (pity_counter !== undefined && pity_counter !== null) current.pity_counter = Number(pity_counter);
     if (total_spins !== undefined && total_spins !== null) current.total_spins = Number(total_spins);
@@ -122,9 +129,10 @@ export async function updateUserResources(userId, { gems, pity_counter, total_sp
 
   // Upsert user_resources
   const res = await sql`
-    INSERT INTO user_resources (user_id, gems, pity_counter, total_spins, total_exports, updated_at)
+    INSERT INTO user_resources (user_id, user_name, gems, pity_counter, total_spins, total_exports, updated_at)
     VALUES (
       ${userId},
+      COALESCE(${user_name !== undefined && user_name !== null ? String(user_name) : null}, ''),
       COALESCE(${gems !== undefined && gems !== null ? Number(gems) : null}, 1600),
       COALESCE(${pity_counter !== undefined && pity_counter !== null ? Number(pity_counter) : null}, 0),
       COALESCE(${total_spins !== undefined && total_spins !== null ? Number(total_spins) : null}, 0),
@@ -132,12 +140,13 @@ export async function updateUserResources(userId, { gems, pity_counter, total_sp
       CURRENT_TIMESTAMP
     )
     ON CONFLICT (user_id) DO UPDATE SET
+      user_name = CASE WHEN ${user_name !== undefined && user_name !== null} THEN ${String(user_name)} ELSE user_resources.user_name END,
       gems = CASE WHEN ${gems !== undefined && gems !== null} THEN ${Number(gems)} ELSE user_resources.gems END,
       pity_counter = CASE WHEN ${pity_counter !== undefined && pity_counter !== null} THEN ${Number(pity_counter)} ELSE user_resources.pity_counter END,
       total_spins = CASE WHEN ${total_spins !== undefined && total_spins !== null} THEN ${Number(total_spins)} ELSE user_resources.total_spins END,
       total_exports = CASE WHEN ${total_exports !== undefined && total_exports !== null} THEN ${Number(total_exports)} ELSE user_resources.total_exports END,
       updated_at = CURRENT_TIMESTAMP
-    RETURNING user_id, gems, pity_counter, total_spins, total_exports, created_at, updated_at;
+    RETURNING user_id, user_name, gems, pity_counter, total_spins, total_exports, created_at, updated_at;
   `;
   const rows = getRows(res);
 

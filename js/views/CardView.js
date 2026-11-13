@@ -116,7 +116,7 @@ export class CardView {
     this.rBan.textContent = `${t('r_' + card.tier)} · ${card.score}%`;
 
     this.rImg.style.background = this.getCardBackground(card);
-    this.rImg.textContent = card.img ? '' : this.initials(card.name);
+    this.renderCardImage(this.rImg, card);
 
     this.rName.textContent = card.name;
     const countryLabel = card.countryId && card.countryId !== 'any'
@@ -237,6 +237,49 @@ export class CardView {
 
     subhead.append(eraBadge);
 
+    // Concise 1-paragraph bio header (full-width, no redundant mini-portrait)
+    const bioHeader = document.createElement('div');
+    bioHeader.className = 'dossier-bio-header';
+
+    const bioTextBox = document.createElement('div');
+    bioTextBox.className = 'dossier-bio-text';
+
+    const bioP = document.createElement('p');
+    let bioText = '';
+    if (card) {
+      bioText = (isVi && card.summaryVi) ? card.summaryVi : (card.summary || card.desc || '');
+    }
+    bioText = bioText.replace(/\s+/g, ' ').trim();
+    if (bioText.length > 280) {
+      bioText = bioText.slice(0, 277) + '…';
+    }
+    bioP.textContent = bioText || (isVi ? 'Hồ sơ nhân vật lịch sử / giả tưởng được trích xuất từ dữ liệu bách khoa toàn thư.' : 'Figure dossier retrieved from encyclopedia archives.');
+
+    // Collapsible "Xem thêm ▾" / "Thu gọn ▴" toggle for long bios (>140 chars).
+    const FULL = bioText;
+    const COLLAPSED_LEN = 140;
+    if (FULL.length > COLLAPSED_LEN) {
+      const collapsed = FULL.slice(0, COLLAPSED_LEN).trimEnd();
+      const moreLabel = isVi ? 'Xem thêm ▾' : 'Read more ▾';
+      const lessLabel  = isVi ? 'Thu gọn ▴'  : 'Show less ▴';
+      bioP.textContent = collapsed;
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'dossier-bio-toggle';
+      toggle.textContent = moreLabel;
+      toggle.addEventListener('click', () => {
+        const expanded = bioP.textContent !== FULL;
+        bioP.textContent = expanded ? FULL : collapsed;
+        toggle.textContent = expanded ? lessLabel : moreLabel;
+        bioTextBox.classList.toggle('expanded', expanded);
+      });
+      bioTextBox.append(toggle);
+    }
+
+    bioTextBox.append(bioP);
+
+    bioHeader.append(bioTextBox);
+
     const list = document.createElement('div');
     list.className = 'dossier-grid';
 
@@ -291,6 +334,24 @@ export class CardView {
         valStrong.innerHTML = it.val;
       } else {
         valStrong.textContent = it.val;
+        // Collapsible "Xem thêm ▾" / "Thu gọn ▴" for long notable-event text.
+        const fullText = it.val || '';
+        if (it.isFame && fullText.length > 140) {
+          const collapsed = fullText.slice(0, 140).trimEnd();
+          const moreLabel = isVi ? 'Xem thêm ▾' : 'Read more ▾';
+          const lessLabel  = isVi ? 'Thu gọn ▴'  : 'Show less ▴';
+          valStrong.textContent = collapsed;
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'dossier-bio-toggle';
+          toggle.textContent = moreLabel;
+          toggle.addEventListener('click', () => {
+            const expanded = valStrong.textContent !== fullText;
+            valStrong.textContent = expanded ? fullText : collapsed;
+            toggle.textContent = expanded ? lessLabel : moreLabel;
+          });
+          valStrong.append(toggle);
+        }
       }
 
       bodyDiv.append(labelSpan, valStrong);
@@ -298,7 +359,7 @@ export class CardView {
       list.append(row);
     });
 
-    wrap.append(head, subhead, list);
+    wrap.append(head, subhead, bioHeader, list);
     return wrap;
   }
 
@@ -392,6 +453,98 @@ export class CardView {
 
     this.imgCache.set(url, promise);
     return promise;
+  }
+
+  // Client-side image rescue: Wikipedia REST Summary API, fetched directly in
+  // the browser. Sets imgElement.src in-place so the portrait appears without
+  // a full re-render. referrerPolicy=no-referrer is forced and crossOrigin is
+  // explicitly removed — Wikimedia/Fandom images do not set CORS headers.
+  async rescueImage(imgElement, card) {
+    if (!imgElement || !card) return;
+    const title = card.title || card.name;
+    if (!title) return;
+
+    const rescue = async (domain) => {
+      const u = `https://${domain}/api/rest_v1/page/summary/` + encodeURIComponent(title);
+      try {
+        const j = await fetch(u);
+        if (!j.ok) return null;
+        const data = await j.json();
+        if (!data || data.type === 'disambiguation' || data.type === 'redirect') return null;
+        return (data.thumbnail && data.thumbnail.source)
+          || (data.originalimage && data.originalimage.source)
+          || null;
+      } catch (_) { return null; }
+    };
+
+    const domains = [];
+    try { const u = new URL(card.url); if (u.hostname) domains.push(u.hostname); } catch (_) {}
+    try { const u = new URL(card.urlVi); if (u.hostname && !domains.includes(u.hostname)) domains.push(u.hostname); } catch (_) {}
+    if (!domains.includes('en.wikipedia.org')) domains.push('en.wikipedia.org');
+
+    for (const d of domains) {
+      const src = await rescue(d);
+      if (src) {
+        imgElement.referrerPolicy = 'no-referrer';
+        imgElement.removeAttribute('crossOrigin');
+        imgElement.src = src;
+        return;
+      }
+    }
+  }
+
+  // Render a card's portrait into a container div. If card.img is missing or
+  // the image fails, attempts an in-place REST rescue before falling back to
+  // the character's initials.
+  renderCardImage(container, card) {
+    if (!container || !card) return;
+    container.replaceChildren();
+
+    const placeImg = (src) => {
+      const imTag = document.createElement('img');
+      imTag.src = src;
+      imTag.alt = card.name || '';
+      imTag.referrerPolicy = 'no-referrer';
+      imTag.style.width = '100%';
+      imTag.style.height = '100%';
+      imTag.style.objectFit = 'cover';
+      imTag.style.borderRadius = 'inherit';
+      imTag.onerror = async () => {
+        await this.rescueImage(imTag, card);
+        if (imTag.complete && imTag.naturalWidth > 0) return;
+        imTag.remove();
+        container.textContent = this.initials(card.name);
+      };
+      container.append(imTag);
+    };
+
+    if (card.img) {
+      placeImg(card.img);
+      return;
+    }
+
+    // No image yet — try a live REST rescue before the initials fallback.
+    (async () => {
+      const imTag = document.createElement('img');
+      imTag.alt = card.name || '';
+      imTag.referrerPolicy = 'no-referrer';
+      imTag.style.width = '100%';
+      imTag.style.height = '100%';
+      imTag.style.objectFit = 'cover';
+      imTag.style.borderRadius = 'inherit';
+      await this.rescueImage(imTag, card);
+      if (imTag.src) {
+        imTag.onerror = async () => {
+          await this.rescueImage(imTag, card);
+          if (imTag.complete && imTag.naturalWidth > 0) return;
+          imTag.remove();
+          container.textContent = this.initials(card.name);
+        };
+        container.append(imTag);
+      } else {
+        container.textContent = this.initials(card.name);
+      }
+    })();
   }
 
   wrapText(ctx, text, x, y, maxW, lineH, maxLines) {
@@ -861,8 +1014,23 @@ export class CardView {
         const imgBox = document.createElement('div');
         imgBox.className = 'im';
         imgBox.style.background = this.getCardBackground(e.card);
-        if (!e.card.img) {
-          imgBox.textContent = this.initials(e.card.name);
+        if (e.card.img) {
+          const imTag = document.createElement('img');
+          imTag.src = e.card.img;
+          imTag.alt = e.card.name || '';
+          imTag.referrerPolicy = 'no-referrer';
+          imTag.style.width = '100%';
+          imTag.style.height = '100%';
+          imTag.style.objectFit = 'cover';
+          imTag.onerror = async () => {
+            await this.rescueImage(imTag, e.card);
+            if (imTag.complete && imTag.naturalWidth > 0) return;
+            imTag.remove();
+            imgBox.textContent = this.initials(e.card.name);
+          };
+          imgBox.append(imTag);
+        } else {
+          this.renderCardImage(imgBox, e.card);
         }
 
         const textBox = document.createElement('div');
@@ -985,8 +1153,23 @@ export class CardView {
         const imgBox = document.createElement('div');
         imgBox.className = 'im';
         imgBox.style.background = this.getCardBackground(card);
-        if (!card.img) {
-          imgBox.textContent = this.initials(card.name);
+        if (card.img) {
+          const imTag = document.createElement('img');
+          imTag.src = card.img;
+          imTag.alt = card.name || '';
+          imTag.referrerPolicy = 'no-referrer';
+          imTag.style.width = '100%';
+          imTag.style.height = '100%';
+          imTag.style.objectFit = 'cover';
+          imTag.onerror = async () => {
+            await this.rescueImage(imTag, card);
+            if (imTag.complete && imTag.naturalWidth > 0) return;
+            imTag.remove();
+            imgBox.textContent = this.initials(card.name);
+          };
+          imgBox.append(imTag);
+        } else {
+          this.renderCardImage(imgBox, card);
         }
 
         const textBox = document.createElement('div');

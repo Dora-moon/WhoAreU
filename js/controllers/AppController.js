@@ -16,6 +16,7 @@ import { StoryView } from '../views/StoryView.js';
 import { CardView } from '../views/CardView.js';
 import { AudioView } from '../views/AudioView.js';
 import { SettingsView } from '../views/SettingsView.js';
+import { MiniGameView } from '../views/MiniGameView.js';
 
 import { GachaController } from './GachaController.js';
 import { StoryController } from './StoryController.js';
@@ -68,6 +69,7 @@ export class AppController {
     this.storyView = new StoryView();
     this.cardView = new CardView();
     this.audioView = new AudioView();
+    this.miniGameView = new MiniGameView();
     this.settingsView = new SettingsView({
       storyModel: this.storyModel,
       audioView: this.audioView,
@@ -82,7 +84,8 @@ export class AppController {
       inventoryModel: this.inventoryModel,
       storyView: this.storyView,
       cardView: this.cardView,
-      audioView: this.audioView
+      audioView: this.audioView,
+      miniGameView: this.miniGameView
     });
 
     this.gachaController = new GachaController({
@@ -113,20 +116,37 @@ export class AppController {
       this.cardView.updateInventoryBadge(this.inventoryModel.getCount());
       this.rouletteView.setStatus(this.userProfileModel.t('st_idle'), false);
 
+      // Listen for Admin Mode unlock event
+      if (typeof window !== 'undefined') {
+        window.addEventListener('whoareu:admin-unlocked', () => {
+          this.updateAdminBadge();
+        });
+      }
+
       // Register gem change listener
       this.userProfileModel.onGemsChange(gems => {
         this.cardView.updateGemsBadge(gems);
       });
 
       // Hook up gem counter button to claim daily bonus (+1600 gems)
+      // In Admin Mode: clicking sets gems to 999999999 and syncs to Neon.
       if (this.cardView.btnGems) {
         this.cardView.btnGems.onclick = () => {
-          this.userProfileModel.addGems(1600);
-          this.cardView.toast(this.userProfileModel.t('bonusClaimed'));
-          this.audioView.chime();
-          this.cardView.confetti(60, ['#38bdf8', '#818cf8', '#ffffff']);
+          if (this.userProfileModel.isAdmin) {
+            this.userProfileModel.setGems(999999999);
+            this.cardView.toast('🛠️ ADMIN: Gems set to 999,999,999');
+            this.audioView.chime();
+          } else {
+            this.userProfileModel.addGems(1600);
+            this.cardView.toast(this.userProfileModel.t('bonusClaimed'));
+            this.audioView.chime();
+            this.cardView.confetti(60, ['#38bdf8', '#818cf8', '#ffffff']);
+          }
         };
       }
+
+      // Initial admin badge check
+      this.updateAdminBadge();
 
       // Background remote sync hydration from Vercel Postgres
       this.syncFromRemote();
@@ -177,13 +197,28 @@ export class AppController {
     this.profileView.updateAbsurdDisplay(this.userProfileModel.fields.absurd, this.userProfileModel);
     this.profileView.updateLocks(this.userProfileModel.locks, this.userProfileModel);
 
+    // Check the admin trigger on initial load — the user may already have
+    // saved the trigger profile in localStorage.
+    this.userProfileModel.checkAdminTrigger();
+    this.updateAdminBadge();
+
     // Bind field updates
     this.profileView.bindInputEvents((key, val) => {
       this.userProfileModel.setField(key, val);
       if (key === 'absurd') {
         this.profileView.updateAbsurdDisplay(val, this.userProfileModel);
       }
-    }, this.userProfileModel);
+    }, this.userProfileModel, this.wikipediaModel);
+
+    // Trigger initial reactive prefetch
+    if (this.wikipediaModel && typeof this.wikipediaModel.schedulePrefetch === 'function') {
+      const inputs = this.userProfileModel.getInputs();
+      this.wikipediaModel.schedulePrefetch(inputs, {
+        onStatus: (msg, isBusy) => {
+          console.log('[AppController] Initial prefetch status:', msg, isBusy);
+        }
+      });
+    }
 
     // Bind dice rolls
     this.profileView.bindRollEvents(
@@ -249,15 +284,113 @@ export class AppController {
       this.$('#btnSound').textContent = on ? '🔊' : '🔇';
     };
 
-    // Close buttons on all native dialogs
-    this.$$('dialog').forEach(dlg => {
-      dlg.addEventListener('click', e => {
-        if (e.target === dlg) dlg.close();
+    // Admin Pool button (only visible in Admin Mode)
+    const btnAdminPool = this.$('#btnAdminPool');
+    if (btnAdminPool) {
+      btnAdminPool.onclick = () => this.openAdminPool();
+      btnAdminPool.hidden = !this.userProfileModel.isAdmin;
+    }
+
+    // Global Delegated Click Listener for Modal & Drawer Close Buttons
+    document.addEventListener('click', e => {
+      const closeBtn = e.target.closest('.close-btn, .modal-close, [data-close-modal], [data-close]');
+      if (!closeBtn) return;
+      e.stopPropagation();
+
+      // 1. If inside a <dialog>, close that dialog
+      const dlg = closeBtn.closest('dialog');
+      if (dlg && typeof dlg.close === 'function') {
+        try { dlg.close(); } catch (_) { dlg.removeAttribute('open'); }
+        return;
+      }
+
+      // 2. If inside a drawer or panel like storySec or adminPool
+      const panel = closeBtn.closest('#storySec, #adminPoolDlg, .modal, .drawer');
+      if (panel) {
+        if (typeof panel.close === 'function') {
+          try { panel.close(); } catch (_) { panel.removeAttribute('open'); }
+        } else {
+          panel.hidden = true;
+          panel.classList.remove('active', 'open');
+        }
+        return;
+      }
+
+      // 3. Fallback: Close any open dialogs / active modals
+      document.querySelectorAll('dialog[open]').forEach(d => {
+        try { d.close(); } catch (_) { d.removeAttribute('open'); }
       });
-      this.$$('[data-close]', dlg).forEach(btn => {
-        btn.onclick = () => dlg.close();
+      document.querySelectorAll('.modal.active, .drawer.open').forEach(el => {
+        el.classList.remove('active', 'open');
+        el.hidden = true;
       });
     });
+
+    // Close on click outside for all native dialogs (backdrop click)
+    this.$$('dialog').forEach(dlg => {
+      dlg.addEventListener('click', e => {
+        if (e.target === dlg) {
+          try { dlg.close(); } catch (_) { dlg.removeAttribute('open'); }
+        }
+      });
+    });
+
+    // Global Escape Key Listener to hide any active modal/drawer (Museum, Story, Settings, Admin Pool, Profile, MultiPull, Export)
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        // Close all open dialogs
+        document.querySelectorAll('dialog[open]').forEach(dlg => {
+          try { dlg.close(); } catch (_) { dlg.removeAttribute('open'); }
+        });
+
+        // Hide Story section if open
+        const storySec = document.getElementById('storySec');
+        if (storySec && !storySec.hidden) {
+          storySec.hidden = true;
+        }
+
+        // Close any drawers or modals
+        document.querySelectorAll('.modal.active, .drawer.open, .admin-pool-drawer').forEach(el => {
+          if (typeof el.close === 'function') {
+            try { el.close(); } catch (_) { el.removeAttribute('open'); }
+          }
+          el.classList.remove('active', 'open');
+          el.hidden = true;
+        });
+      }
+    });
+
+    // Wire up Story close button specifically
+    const btnCloseStory = this.$('#btnCloseStory');
+    if (btnCloseStory) {
+      btnCloseStory.onclick = () => {
+        const storySec = document.getElementById('storySec');
+        if (storySec) storySec.hidden = true;
+      };
+    }
+  }
+
+  openAdminPool() {
+    const adminDlg = this.$('#adminPoolDlg');
+    const adminStats = this.$('#adminPoolStats');
+    const adminList = this.$('#adminPoolList');
+    if (!adminDlg) return;
+
+    const cards = this.gachaController && this.gachaController.lastPool ? this.gachaController.lastPool : this.wikipediaModel.offlinePool(500, 2026);
+    if (adminStats) {
+      adminStats.textContent = `Character Pool Count: ${cards.length} entities | Active Universe: ${this.userProfileModel.fields.universe || 'historical'}`;
+    }
+    if (adminList) {
+      adminList.replaceChildren(...cards.map(c => {
+        const item = document.createElement('div');
+        item.className = 'dossier-item';
+        item.style.padding = '8px';
+        item.style.fontSize = '0.8rem';
+        item.innerHTML = `<strong>${c.name}</strong><br><small>${c.birth || 'N/A'} - ${c.death || 'present'} | ${c.targetRole || c.desc}</small>`;
+        return item;
+      }));
+    }
+    if (!adminDlg.open) adminDlg.showModal();
   }
 
   applyTheme() {
@@ -497,6 +630,18 @@ export class AppController {
     this.cardView.confetti(220, ['#ff007f', '#00f3ff', '#ffd700', '#7cff00', '#fff']);
     this.audioView.win('rare');
     this.cardView.toast(this.userProfileModel.t('chaos'));
+  }
+
+  updateAdminBadge() {
+    if (!this.userProfileModel.isAdmin) return;
+    const hdr = this.$('#hdrProfileName');
+    if (hdr && !hdr.textContent.includes('DEV ADMIN MODE')) {
+      hdr.textContent = '🛠️ DEV ADMIN MODE UNLOCKED';
+      hdr.style.color = 'var(--c-yellow)';
+    }
+    // Ensure the "Soi Pool Gacha" button is visible
+    const btn = this.$('#btnAdminPool');
+    if (btn) btn.hidden = false;
   }
 }
 

@@ -6,10 +6,10 @@
   <title>Live Wikipedia Gacha: Real-Time History Matcher &amp; Absurd Story Engine</title>
   <meta name="theme-color" content="#1e1e2d">
 
-  <!-- Typography & Cartoon Fonts -->
+  <!-- Typography & Vietnamese-compatible Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Fredoka:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&family=Quicksand:wght@500;600;700;800&display=swap&subset=vietnamese" rel="stylesheet">
 
   <!-- Modular Stylesheets (MVC Architecture) -->
   <link rel="stylesheet" href="css/themes.css">
@@ -56,6 +56,9 @@
             </button>
             <button class="pull pull-10x" id="pull10xBtn" type="button">
               <span>⚡</span> <span data-i18n="pull10x">SPIN 10X</span>
+            </button>
+            <button class="pull admin-pool-btn" id="btnAdminPool" type="button" hidden data-i18n-title="adminPoolTip" title="Open Admin Pool Inspector">
+              <span>👁️</span> <span>Soi Pool Gacha</span>
             </button>
           </div>
 
@@ -106,6 +109,7 @@
             <div class="shead-tools">
               <span class="badge" id="modeBadge"></span>
               <button class="btn-skip-anim" id="btnSkipAnim" type="button" data-i18n="skipAnim">⏩ Skip Animation</button>
+              <button class="ib close-btn modal-close" id="btnCloseStory" data-close-modal type="button" title="Đóng truyện / Close Story" aria-label="Close">✕</button>
             </div>
           </div>
           <div class="loader" id="storyLoader" hidden>
@@ -119,6 +123,31 @@
             <div id="choiceBtns" class="choices-grid"></div>
           </div>
           <div class="itembox" id="itemBox" hidden></div>
+          <!-- Mini-Game Arena (revealed by StoryController when a chapter branches into a mini-game) -->
+          <div class="minigame-arena" id="minigameArena" hidden>
+            <!-- Mission Context Banner -->
+            <div class="minigame-mission-banner">
+              <div class="mission-avatar" id="minigameMissionAvatar" hidden></div>
+              <div class="mission-info">
+                <h3 id="minigameMissionTitle"></h3>
+                <p id="minigameObjectiveHint" class="minigame-hint"></p>
+              </div>
+            </div>
+            <div class="minigame-head">
+              <span class="badge" id="minigameBadge">🎯 Mini-Game</span>
+              <h3 id="minigameTitle"></h3>
+            </div>
+            <canvas id="minigameCanvas" width="640" height="360"></canvas>
+            <div class="minigame-hud">
+              <span id="minigameScore">Score: 0</span>
+              <span id="minigameTimer">Time: 0s</span>
+            </div>
+            <div class="minigame-controls">
+              <button class="btn" id="minigameStart" type="button">▶ Start</button>
+              <button class="btn ghost" id="minigameSkip" type="button" data-i18n="skipAnim">⏭ Skip</button>
+            </div>
+            <p class="minigame-hint" id="minigameHint"></p>
+          </div>
           <div class="acts" id="afterStory" hidden>
             <button class="btn" id="btnPaper" type="button"></button>
             <button class="btn" id="btnHolo" type="button"></button>
@@ -134,6 +163,18 @@
         <section class="panel" id="pTarget">
           <h2 data-i18n="targetH">🎯 Target Filter Console</h2>
           <div class="target-console">
+            <!-- 0. Universe Scope Card -->
+            <div class="target-card" id="tcUniverse">
+              <div class="tfh">
+                <label class="card-title" for="universeScope" id="lblUniverse" data-i18n="universeL">Phạm vi Vũ trụ</label>
+                <span class="tfb">
+                  <button class="mini sm" data-roll="universe" type="button" data-i18n-title="diceTip">🎲</button>
+                  <button class="mini sm lock" data-lock="universe" type="button">🔓</button>
+                </span>
+              </div>
+              <select id="universeScope" aria-labelledby="lblUniverse"></select>
+            </div>
+
             <!-- 1. Skin Tone Card -->
             <div class="target-card">
               <div class="tfh">
@@ -207,6 +248,7 @@
                   <button class="mini sm lock" data-lock="country" type="button">🔓</button>
                 </span>
               </div>
+              <input type="text" id="countrySearchInput" placeholder="🔍 Gõ tên nước để lọc nhanh..." class="country-search-input" aria-label="Search countries">
               <select id="country" aria-labelledby="lblCountry"></select>
             </div>
 
@@ -252,7 +294,7 @@
   <dialog id="profileDlg">
     <div class="dhead">
       <h2 data-i18n="profileH">🧑 Your Profile — Traveler in History</h2>
-      <button class="ib" data-close type="button">✕</button>
+      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
     </div>
     <label for="uName" data-i18n="userName">Your Name</label>
     <div class="row">
@@ -278,6 +320,8 @@
     <label for="uRole" data-i18n="roleL">Historical Role</label>
     <select id="uRole"></select>
     <input id="uRoleCustom" hidden maxlength="40" style="margin-top:8px" data-i18n-ph="customRolePh">
+    <label for="storyTone" data-i18n="storyToneL">Story Tone / Thể loại cốt truyện</label>
+    <select id="storyTone" data-i18n-ph="storyTonePh"></select>
     <div class="dfoot">
       <button class="btn" id="btnSaveProfile" type="button" data-i18n="save">Save &amp; Close</button>
     </div>
@@ -287,7 +331,7 @@
   <dialog id="settingsDlg" class="settings-dialog">
     <div class="dhead">
       <h2 data-i18n="setH">⚙️ Cài đặt AI &amp; Âm thanh</h2>
-      <button class="ib" data-close type="button">✕</button>
+      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
     </div>
     <label for="sProv" data-i18n="provider">Nhà cung cấp AI</label>
     <select id="sProv">
@@ -317,7 +361,7 @@
   <dialog id="invDlg">
     <div class="dhead">
       <h2 data-i18n="invH"></h2>
-      <button class="ib" data-close type="button">✕</button>
+      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
     </div>
     <div id="invList">
       <div class="muted" id="invStats"></div>
@@ -333,7 +377,7 @@
   <dialog id="multiPullDlg">
     <div class="dhead">
       <h2 data-i18n="multi10xTitle">⚡ 10X Gacha Pull Results</h2>
-      <button class="ib" data-close type="button">✕</button>
+      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
     </div>
     <div class="muted" id="multiPullNote" data-i18n="multiPullNote">10 historical figures summoned from the timeline:</div>
     <div class="inv-grid" id="multiPullGrid"></div>
@@ -346,7 +390,7 @@
   <dialog id="expDlg">
     <div class="dhead">
       <h2 data-i18n="expTitle"></h2>
-      <button class="ib" data-close type="button">✕</button>
+      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
     </div>
     <div class="tabs">
       <button class="btn ghost" id="tabPaper" type="button" data-i18n="paper"></button>
@@ -360,6 +404,18 @@
     <div class="dfoot">
       <button class="btn ghost" id="expCopy" type="button" data-i18n="copyStory"></button>
       <button class="btn" id="expDl" type="button" data-i18n="dl"></button>
+    </div>
+  </dialog>
+
+  <!-- Admin Character Pool Drawer / Dialog -->
+  <dialog id="adminPoolDlg" class="admin-pool-drawer">
+    <div class="dhead">
+      <h2 data-i18n="adminPoolH">🛠️ Character Pool &amp; Entity Inspector</h2>
+      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="admin-pool-body" id="adminPoolBody">
+      <div class="admin-pool-stats" id="adminPoolStats"></div>
+      <div class="admin-pool-list" id="adminPoolList"></div>
     </div>
   </dialog>
 

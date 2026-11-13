@@ -132,7 +132,7 @@ export class StoryView {
             <span class="char-sub">${targetCard.birth}${targetCard.death ? ' – ' + targetCard.death : ''}</span>
           </div>
           <div class="char-avatar target-avatar-circle" style="${tAvatarBg}">
-            ${targetCard.img ? '' : `<span class="avatar-initials">${tInitials}</span>`}
+            ${targetCard.img ? `<img src="${targetCard.img}" alt="${tName}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.remove()">` : `<span class="avatar-initials">${tInitials}</span>`}
           </div>
         </div>
       </div>
@@ -140,12 +140,19 @@ export class StoryView {
     this.dialogueHeader.hidden = false;
   }
 
+  // Sanitize fractional chapter numbers (e.g. 1.5 for interlude bridges)
+  // so they never produce invalid CSS selectors like '#chap1.5'.
+  _chapId(n) {
+    return 'chap' + String(n).replace(/\./g, '_');
+  }
+
   getChapterParagraph(n, chapterTitle) {
-    let art = this.$('#chap' + n);
+    const id = this._chapId(n);
+    let art = document.getElementById(id);
     if (!art) {
       art = document.createElement('article');
       art.className = `chap-panel chap-panel-${n}`;
-      art.id = 'chap' + n;
+      art.id = id;
 
       const phaseIcons = { 1: '🌟', 2: '💥', 3: '🔮' };
 
@@ -238,7 +245,7 @@ export class StoryView {
     }
   }
 
-  renderChoices(choices, onChoose, selectedIndex = -1) {
+  renderChoices(choices, onChoose, selectedIndex = -1, targetCard = null) {
     this.choicesBox.hidden = false;
     const letterCodes = ['A', 'B', 'C', 'D'];
     this.choiceBtns.replaceChildren(
@@ -268,6 +275,25 @@ export class StoryView {
         const glowRim = document.createElement('div');
         glowRim.className = 'choice-card-glow';
 
+        // Corner avatar (64px framed portrait beside the dialogue choice)
+        if (targetCard && targetCard.img) {
+          const avatar = document.createElement('div');
+          avatar.className = 'choice-corner-avatar';
+          const img = document.createElement('img');
+          img.src = targetCard.img;
+          img.alt = targetCard.name || '';
+          img.referrerPolicy = 'no-referrer';
+          img.style.width = '64px';
+          img.style.height = '64px';
+          img.style.objectFit = 'cover';
+          img.style.objectPosition = 'center 20%';
+          img.style.borderRadius = '50%';
+          img.style.border = '2px solid var(--gold, #ffd700)';
+          img.onerror = () => avatar.remove();
+          avatar.appendChild(img);
+          btn.appendChild(avatar);
+        }
+
         btn.append(headerDiv, textDiv, glowRim);
         if (onChoose) {
           btn.onclick = () => onChoose(i);
@@ -275,6 +301,37 @@ export class StoryView {
         return btn;
       })
     );
+  }
+
+  // Single-paragraph opening intro (3-4 sentences max) rendered above the
+  // dialogue header. Falls back gracefully if no intro is supplied.
+  renderIntro(introText, targetCard = null) {
+    if (!introText) return;
+    const intro = document.createElement('div');
+    intro.className = 'story-intro';
+    intro.innerHTML = `<p>${String(introText).replace(/[<>&]/g, c => ({
+      '<': '&lt;', '>': '&gt;', '&': '&amp;'
+    }[c]))}</p>`;
+
+    if (targetCard && targetCard.img) {
+      const avatar = document.createElement('div');
+      avatar.className = 'intro-corner-avatar';
+      const img = document.createElement('img');
+      img.src = targetCard.img;
+      img.alt = targetCard.name || '';
+      img.referrerPolicy = 'no-referrer';
+      img.style.width = '72px';
+      img.style.height = '72px';
+      img.style.objectFit = 'cover';
+      img.style.objectPosition = 'center 20%';
+      img.style.borderRadius = '50%';
+      img.style.border = '2px solid var(--gold, #ffd700)';
+      img.onerror = () => avatar.remove();
+      avatar.appendChild(img);
+      intro.appendChild(avatar);
+    }
+
+    this.storyBody.prepend(intro);
   }
 
   showCursedItem(item, labelTitle) {

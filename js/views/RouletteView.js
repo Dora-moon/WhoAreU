@@ -61,7 +61,24 @@ export class RouletteView {
     imgEl.className = 'im';
     imgEl.style.background = this.getCardBackground(card);
 
-    if (!card.img) {
+    if (card.img) {
+      const imTag = document.createElement('img');
+      imTag.src = card.img;
+      imTag.alt = card.name || '';
+      imTag.referrerPolicy = 'no-referrer';
+      imTag.style.width = '100%';
+      imTag.style.height = '100%';
+      imTag.style.objectFit = 'cover';
+      imTag.style.objectPosition = 'center 15%';
+      imTag.onerror = () => {
+        imTag.remove();
+        const ini = document.createElement('span');
+        ini.className = 'ini';
+        ini.textContent = this.initials(card.name);
+        imgEl.append(ini);
+      };
+      imgEl.append(imTag);
+    } else {
       const ini = document.createElement('span');
       ini.className = 'ini';
       ini.textContent = this.initials(card.name);
@@ -88,9 +105,12 @@ export class RouletteView {
   getMetrics() {
     const a = this.track.children[0];
     const b = this.track.children[1] || a;
+    // Use the CSS variable so the layout math stays consistent even if a
+    // previous winner card still carries a scale transform.
+    const cssCw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cw')) || (a ? a.offsetWidth : 136);
     return {
-      step: b.offsetLeft - a.offsetLeft,
-      cw: a.offsetWidth,
+      step: b.offsetLeft - a.offsetLeft || cssCw,
+      cw: cssCw,
       vw: this.wheelVp.clientWidth
     };
   }
@@ -98,47 +118,68 @@ export class RouletteView {
   spinTo(targetIndex, onTick) {
     return new Promise(resolve => {
       const m = this.getMetrics();
-      const jit = (Math.random() * 0.7 - 0.35) * m.cw;
-      const target = targetIndex * m.step + m.cw / 2 + jit - m.vw / 2;
-      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const duration = reduced ? 1500 : 7200;
 
-      this.landed = { idx: targetIndex, jit };
-      this.skipSpin = false;
-
-      let t0 = null;
-      let lastIdx = -1;
-      let lastTick = 0;
-      this.track.style.transform = 'translate3d(0,0,0)';
-
-      const frame = ts => {
-        if (t0 == null) t0 = ts;
-        let progress = Math.min(1, (ts - t0) / duration);
-        if (this.skipSpin) progress = 1;
-
-        // Quartic deceleration curve
-        const ease = 1 - Math.pow(1 - progress, 4.2);
-        const pos = target * ease;
-        this.track.style.transform = `translate3d(${-pos}px,0,0)`;
-
-        const cardIndex = Math.floor((pos + m.vw / 2) / m.step);
-        if (cardIndex !== lastIdx) {
-          lastIdx = cardIndex;
-          if (ts - lastTick > 28 && progress < 1) {
-            if (onTick) onTick(progress);
-            lastTick = ts;
+      // Guard against zero-width track — if the layout hasn't rendered yet,
+      // the animation loop would never progress and freeze the UI.
+      if (!m.step || m.step <= 0 || !m.vw || m.vw <= 0) {
+        // Defer one frame to let layout settle, then retry once.
+        requestAnimationFrame(() => {
+          const m2 = this.getMetrics();
+          if (!m2.step || m2.step <= 0 || !m2.vw || m2.vw <= 0) {
+            // Still broken — resolve immediately to avoid hanging the spin.
+            resolve();
+            return;
           }
-        }
+          this._spinTo(targetIndex, onTick, m2, resolve);
+        });
+        return;
+      }
 
-        if (progress < 1) {
-          requestAnimationFrame(frame);
-        } else {
-          resolve();
-        }
-      };
-
-      requestAnimationFrame(frame);
+      this._spinTo(targetIndex, onTick, m, resolve);
     });
+  }
+
+  _spinTo(targetIndex, onTick, m, resolve) {
+    const jit = (Math.random() * 0.7 - 0.35) * m.cw;
+    const target = targetIndex * m.step + m.cw / 2 + jit - m.vw / 2;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration = reduced ? 1500 : 7200;
+
+    this.landed = { idx: targetIndex, jit };
+    this.skipSpin = false;
+
+    let t0 = null;
+    let lastIdx = -1;
+    let lastTick = 0;
+    this.track.style.transform = 'translate3d(0,0,0)';
+
+    const frame = ts => {
+      if (t0 == null) t0 = ts;
+      let progress = Math.min(1, (ts - t0) / duration);
+      if (this.skipSpin) progress = 1;
+
+      // Quartic deceleration curve
+      const ease = 1 - Math.pow(1 - progress, 4.2);
+      const pos = target * ease;
+      this.track.style.transform = `translate3d(${-pos}px,0,0)`;
+
+      const cardIndex = Math.floor((pos + m.vw / 2) / m.step);
+      if (cardIndex !== lastIdx) {
+        lastIdx = cardIndex;
+        if (ts - lastTick > 28 && progress < 1) {
+          if (onTick) onTick(progress);
+          lastTick = ts;
+        }
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        resolve();
+      }
+    };
+
+    requestAnimationFrame(frame);
   }
 
   highlightWinner(targetIndex) {

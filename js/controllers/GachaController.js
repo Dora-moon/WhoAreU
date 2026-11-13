@@ -69,93 +69,108 @@ export class GachaController {
 
     const t = (k, v) => this.userProfileModel.t(k, v);
 
-    this.rouletteView.setPulling(true);
-    this.cardView.hideResultCard();
-    this.storyController.hideStory();
-    this.currentCard = null;
-
-    const inp = this.userProfileModel.getInputs();
-    this.lastInput = inp;
-
-    this.rouletteView.setStatus(t('st_search'), true);
-
-    let pool = [];
-    let isLiveWikipedia = true;
-
     try {
-      pool = await this.wikipediaModel.fetchPool(inp);
-    } catch (err) {
-      isLiveWikipedia = false;
-    }
+      this.rouletteView.setPulling(true);
+      this.cardView.hideResultCard();
+      this.storyController.hideStory();
+      this.currentCard = null;
 
-    if (pool.length < 24) {
-      const existingNames = new Set(pool.map(c => c.name));
-      const minYear = inp.selectedMinYear || this.userProfileModel.getBirthYear();
-      this.wikipediaModel.offlinePool(minYear, 2026).forEach(c => {
-        if (!existingNames.has(c.name) && this.wikipediaModel.isFigureInTimeframe(c, minYear, 2026)) {
-          c.selectedMinYear = minYear;
-          pool.push(c);
+      const inp = this.userProfileModel.getInputs();
+      this.lastInput = inp;
+
+      this.rouletteView.setStatus(t('st_search'), true);
+
+      let pool = [];
+      let isLiveWikipedia = true;
+
+      try {
+        // Use instant spin candidates (pre-fetched, scored, 20 cards with resolved images)
+        pool = await this.wikipediaModel.getInstantSpinCandidates(inp, 20);
+        // If pool is empty or too small, fall back to full fetchPool
+        if (pool.length < 30) {
+          pool = await this.wikipediaModel.fetchPool(inp);
+        }
+      } catch (err) {
+        isLiveWikipedia = false;
+      }
+
+      if (pool.length < 24) {
+        const existingNames = new Set(pool.map(c => c.name));
+        const minYear = inp.selectedMinYear || this.userProfileModel.getBirthYear();
+        this.wikipediaModel.offlinePool(minYear, 2026, inp.universe || 'historical').forEach(c => {
+          if (!existingNames.has(c.name) && this.wikipediaModel.isFigureInTimeframe(c, minYear, 2026)) {
+            c.selectedMinYear = minYear;
+            pool.push(c);
+          }
+        });
+      }
+
+      this.lastPool = pool;
+
+      // Score all candidates (already pre-scored from getInstantSpinCandidates, but ensure all have scores)
+      pool.forEach(c => {
+        if (!c.score) {
+          const sc = this.wikipediaModel.score(c, inp);
+          c.score = sc.total;
+          c.parts = sc.parts;
+          c.tier = sc.tier;
         }
       });
+
+      this.rouletteView.setStatus(
+        isLiveWikipedia ? t('st_found', { n: pool.length }) : t('st_offline'),
+        true
+      );
+
+      await new Promise(r => setTimeout(r, 450));
+
+      // Build the 80-card wheel strip
+      const forceRare = this.gachaModel.isPityGuaranteed();
+      const { list, winner } = this.gachaModel.buildWheel(pool, forceRare);
+
+      this.rouletteView.renderTrack(list);
+      this.rouletteView.setStatus(t('st_spin'), true);
+
+      // Run decelerating roll animation
+      await this.rouletteView.spinTo(WIN_INDEX, progress => {
+        this.audioView.tick(progress);
+      });
+
+      // Mark winner on track
+      this.rouletteView.highlightWinner(WIN_INDEX);
+
+      // Update pity system
+      this.gachaModel.recordWinnerTier(winner.tier);
+      this.renderInitialPity();
+
+      // Trigger audio fanfare and screen effects
+      this.audioView.win(winner.tier);
+      if (winner.tier !== 'common') {
+        const colors = winner.tier === 'rare'
+          ? ['#ffd700', '#eb4b4b', '#fff', '#ff9d00']
+          : ['#d32ce6', '#8847ff', '#ff007f', '#fff'];
+        this.cardView.confetti(winner.tier === 'rare' ? 260 : 130, colors);
+      }
+      this.rouletteView.triggerScreenEffects(winner.tier);
+
+      this.currentCard = winner;
+      await new Promise(r => setTimeout(r, 500));
+
+      // Pre-calculate clean Wikipedia dossier
+      winner.dossier = this.wikipediaModel.buildDossier(winner, this.userProfileModel.lang, this.userProfileModel);
+
+      // Show result card
+      this.cardView.showResultCard(winner, this.userProfileModel);
+      this.storyController.setCurrentCard(winner, inp);
+
+      this.rouletteView.setStatus(t('st_idle'), false);
+    } catch (err) {
+      console.error('[GachaController] Single pull failed:', err);
+      this.cardView.toast(t('llmFail') || 'Pull failed');
+    } finally {
+      this.rouletteView.setPulling(false);
+      this.isBusy = false;
     }
-
-    // Score all candidates
-    pool.forEach(c => {
-      const sc = this.wikipediaModel.score(c, inp);
-      c.score = sc.total;
-      c.parts = sc.parts;
-      c.tier = sc.tier;
-    });
-
-    this.rouletteView.setStatus(
-      isLiveWikipedia ? t('st_found', { n: pool.length }) : t('st_offline'),
-      true
-    );
-
-    await new Promise(r => setTimeout(r, 450));
-
-    // Build the 80-card wheel strip
-    const forceRare = this.gachaModel.isPityGuaranteed();
-    const { list, winner } = this.gachaModel.buildWheel(pool, forceRare);
-
-    this.rouletteView.renderTrack(list);
-    this.rouletteView.setStatus(t('st_spin'), true);
-
-    // Run decelerating roll animation
-    await this.rouletteView.spinTo(WIN_INDEX, progress => {
-      this.audioView.tick(progress);
-    });
-
-    // Mark winner on track
-    this.rouletteView.highlightWinner(WIN_INDEX);
-
-    // Update pity system
-    this.gachaModel.recordWinnerTier(winner.tier);
-    this.renderInitialPity();
-
-    // Trigger audio fanfare and screen effects
-    this.audioView.win(winner.tier);
-    if (winner.tier !== 'common') {
-      const colors = winner.tier === 'rare'
-        ? ['#ffd700', '#eb4b4b', '#fff', '#ff9d00']
-        : ['#d32ce6', '#8847ff', '#ff007f', '#fff'];
-      this.cardView.confetti(winner.tier === 'rare' ? 260 : 130, colors);
-    }
-    this.rouletteView.triggerScreenEffects(winner.tier);
-
-    this.currentCard = winner;
-    await new Promise(r => setTimeout(r, 500));
-
-    // Pre-calculate clean Wikipedia dossier
-    winner.dossier = this.wikipediaModel.buildDossier(winner, this.userProfileModel.lang, this.userProfileModel);
-
-    // Show result card
-    this.cardView.showResultCard(winner, this.userProfileModel);
-    this.storyController.setCurrentCard(winner, inp);
-
-    this.rouletteView.setStatus(t('st_idle'), false);
-    this.rouletteView.setPulling(false);
-    this.isBusy = false;
   }
 
   async handleMultiPull(count = 10) {
@@ -177,88 +192,100 @@ export class GachaController {
 
     const t = (k, v) => this.userProfileModel.t(k, v);
 
-    this.rouletteView.setPulling(true);
-    this.cardView.hideResultCard();
-    this.storyController.hideStory();
-    this.currentCard = null;
-
-    const inp = this.userProfileModel.getInputs();
-    this.lastInput = inp;
-
-    this.rouletteView.setStatus(t('st_search'), true);
-
-    let pool = [];
-    let isLiveWikipedia = true;
-
     try {
-      pool = await this.wikipediaModel.fetchPool(inp);
-    } catch (err) {
-      isLiveWikipedia = false;
-    }
+      this.rouletteView.setPulling(true);
+      this.cardView.hideResultCard();
+      this.storyController.hideStory();
+      this.currentCard = null;
 
-    if (pool.length < 24) {
-      const existingNames = new Set(pool.map(c => c.name));
-      const minYear = inp.selectedMinYear || this.userProfileModel.getBirthYear();
-      this.wikipediaModel.offlinePool(minYear, 2026).forEach(c => {
-        if (!existingNames.has(c.name) && this.wikipediaModel.isFigureInTimeframe(c, minYear, 2026)) {
-          c.selectedMinYear = minYear;
-          pool.push(c);
+      const inp = this.userProfileModel.getInputs();
+      this.lastInput = inp;
+
+      this.rouletteView.setStatus(t('st_search'), true);
+
+      let pool = [];
+      let isLiveWikipedia = true;
+
+      try {
+        // Use instant spin candidates (pre-fetched, scored, 20 cards with resolved images)
+        pool = await this.wikipediaModel.getInstantSpinCandidates(inp, 20);
+        // If pool is empty or too small, fall back to full fetchPool
+        if (pool.length < 30) {
+          pool = await this.wikipediaModel.fetchPool(inp);
         }
+      } catch (err) {
+        isLiveWikipedia = false;
+      }
+
+      if (pool.length < 24) {
+        const existingNames = new Set(pool.map(c => c.name));
+        const minYear = inp.selectedMinYear || this.userProfileModel.getBirthYear();
+        this.wikipediaModel.offlinePool(minYear, 2026, inp.universe || 'historical').forEach(c => {
+          if (!existingNames.has(c.name) && this.wikipediaModel.isFigureInTimeframe(c, minYear, 2026)) {
+            c.selectedMinYear = minYear;
+            pool.push(c);
+          }
+        });
+      }
+
+      this.lastPool = pool;
+
+      // Score all candidates
+      pool.forEach(c => {
+        const sc = this.wikipediaModel.score(c, inp);
+        c.score = sc.total;
+        c.parts = sc.parts;
+        c.tier = sc.tier;
       });
+
+      this.rouletteView.setStatus(
+        isLiveWikipedia ? t('st_found', { n: pool.length }) : t('st_offline'),
+        true
+      );
+
+      await new Promise(r => setTimeout(r, 400));
+
+      // Execute multi pulls — bounded for loop + pity guarantee lives in GachaModel
+      const { pulls, bestCard } = this.gachaModel.buildMultiPulls(pool, count);
+      this.renderInitialPity();
+
+      // Wheel preview of the best card
+      const { list } = this.gachaModel.buildWheel(pool, false);
+      list[WIN_INDEX] = bestCard;
+      this.rouletteView.renderTrack(list);
+
+      this.rouletteView.setStatus(t('st_spin'), true);
+      await this.rouletteView.spinTo(WIN_INDEX, progress => {
+        this.audioView.tick(progress);
+      });
+      this.rouletteView.highlightWinner(WIN_INDEX);
+
+      this.audioView.win(bestCard.tier);
+      this.cardView.confetti(bestCard.tier === 'rare' ? 260 : 160, ['#ffd700', '#eb4b4b', '#fff', '#ff9d00']);
+      this.rouletteView.triggerScreenEffects(bestCard.tier);
+
+      this.currentCard = bestCard;
+      bestCard.dossier = this.wikipediaModel.buildDossier(bestCard, this.userProfileModel.lang, this.userProfileModel);
+      this.storyController.setCurrentCard(bestCard, inp);
+
+      // Show 10-pull modal
+      this.cardView.showMultiPullModal(pulls, this.userProfileModel, chosenCard => {
+        this.currentCard = chosenCard;
+        chosenCard.dossier = this.wikipediaModel.buildDossier(chosenCard, this.userProfileModel.lang, this.userProfileModel);
+        this.storyController.setCurrentCard(chosenCard, inp);
+        this.cardView.showResultCard(chosenCard, this.userProfileModel);
+      });
+
+      // Also display the best card
+      this.cardView.showResultCard(bestCard, this.userProfileModel);
+    } catch (err) {
+      console.error('[GachaController] Multi-pull failed:', err);
+      this.cardView.toast(t('llmFail') || 'Multi-pull failed');
+    } finally {
+      this.rouletteView.setStatus(t('st_idle'), false);
+      this.rouletteView.setPulling(false);
+      this.isBusy = false;
     }
-
-    // Score all candidates
-    pool.forEach(c => {
-      const sc = this.wikipediaModel.score(c, inp);
-      c.score = sc.total;
-      c.parts = sc.parts;
-      c.tier = sc.tier;
-    });
-
-    this.rouletteView.setStatus(
-      isLiveWikipedia ? t('st_found', { n: pool.length }) : t('st_offline'),
-      true
-    );
-
-    await new Promise(r => setTimeout(r, 400));
-
-    // Execute multi pulls
-    const { pulls, bestCard } = this.gachaModel.buildMultiPulls(pool, count);
-    this.renderInitialPity();
-
-    // Wheel preview of the best card
-    const { list } = this.gachaModel.buildWheel(pool, false);
-    list[WIN_INDEX] = bestCard;
-    this.rouletteView.renderTrack(list);
-
-    this.rouletteView.setStatus(t('st_spin'), true);
-    await this.rouletteView.spinTo(WIN_INDEX, progress => {
-      this.audioView.tick(progress);
-    });
-    this.rouletteView.highlightWinner(WIN_INDEX);
-
-    this.audioView.win(bestCard.tier);
-    this.cardView.confetti(bestCard.tier === 'rare' ? 260 : 160, ['#ffd700', '#eb4b4b', '#fff', '#ff9d00']);
-    this.rouletteView.triggerScreenEffects(bestCard.tier);
-
-    this.currentCard = bestCard;
-    bestCard.dossier = this.wikipediaModel.buildDossier(bestCard, this.userProfileModel.lang, this.userProfileModel);
-    this.storyController.setCurrentCard(bestCard, inp);
-
-    // Show 10-pull modal
-    this.cardView.showMultiPullModal(pulls, this.userProfileModel, chosenCard => {
-      this.currentCard = chosenCard;
-      chosenCard.dossier = this.wikipediaModel.buildDossier(chosenCard, this.userProfileModel.lang, this.userProfileModel);
-      this.storyController.setCurrentCard(chosenCard, inp);
-      this.cardView.showResultCard(chosenCard, this.userProfileModel);
-    });
-
-    // Also display the best card
-    this.cardView.showResultCard(bestCard, this.userProfileModel);
-
-    this.rouletteView.setStatus(t('st_idle'), false);
-    this.rouletteView.setPulling(false);
-    this.isBusy = false;
   }
 }
 

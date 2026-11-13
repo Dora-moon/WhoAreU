@@ -4,41 +4,338 @@
  * LocalStorage persistence, i18n dictionaries, and locks state.
  */
 
-export const COUNTRIES = [
-  ['any', 'Anywhere', 'Bất kỳ nơi nào', '', '', '🌐'],
-  ['US', 'United States', 'Hoa Kỳ', 'American', 'American|United States', '🇺🇸'],
-  ['GB', 'United Kingdom', 'Vương quốc Anh', 'British', 'British|English|Scottish|Welsh|United Kingdom', '🇬🇧'],
-  ['FR', 'France', 'Pháp', 'French', 'French|France', '🇫🇷'],
-  ['DE', 'Germany', 'Đức', 'German', 'German|Germany', '🇩🇪'],
-  ['IT', 'Italy', 'Ý', 'Italian', 'Italian|Italy', '🇮🇹'],
-  ['ES', 'Spain', 'Tây Ban Nha', 'Spanish', 'Spanish|Spain', '🇪🇸'],
-  ['RU', 'Russia', 'Nga', 'Russian', 'Russian|Soviet', '🇷🇺'],
-  ['CN', 'China', 'Trung Quốc', 'Chinese', 'Chinese|China', '🇨🇳'],
-  ['JP', 'Japan', 'Nhật Bản', 'Japanese', 'Japanese|Japan', '🇯🇵'],
-  ['KR', 'South Korea', 'Hàn Quốc', 'South Korean', 'South Korean|Korean', '🇰🇷'],
-  ['IN', 'India', 'Ấn Độ', 'Indian', 'Indian|India', '🇮🇳'],
-  ['VN', 'Vietnam', 'Việt Nam', 'Vietnamese', 'Vietnamese|Vietnam', '🇻🇳'],
-  ['BR', 'Brazil', 'Brazil', 'Brazilian', 'Brazilian|Brazil', '🇧🇷'],
-  ['MX', 'Mexico', 'Mexico', 'Mexican', 'Mexican|Mexico', '🇲🇽'],
+/**
+ * ~195 UN-recognized countries grouped into 6 regions + 'any'.
+ * Each entry: [value, labelEn, labelVi, queryEn, queryVi, flag]
+ * queryEn/queryVi are used for Wikipedia search queries.
+ */
+export const WORLD_COUNTRIES = [
+  // Default
+  ['any', 'Any Country', 'Mọi quốc gia', 'any', 'mọi', '🌍'],
+  // Asia
+  ['AF', 'Afghanistan', 'Afghanistan', 'Afghan', 'Afghanistan|Afghan', '🇦🇫'],
+  ['AM', 'Armenia', 'Armenia', 'Armenian', 'Armenia|Armenian', '🇦🇲'],
+  ['AZ', 'Azerbaijan', 'Azerbaijan', 'Azerbaijani', 'Azerbaijan|Azerbaijani', '🇦🇿'],
+  ['BH', 'Bahrain', 'Bahrain', 'Bahraini', 'Bahrain|Bahraini', '🇧🇭'],
+  ['BD', 'Bangladesh', 'Bangladesh', 'Bangladeshi', 'Bangladesh|Bangladeshi', '🇧🇩'],
+  ['BT', 'Bhutan', 'Bhutan', 'Bhutanese', 'Bhutan|Bhutanese', '🇧🇹'],
+  ['BN', 'Brunei', 'Brunei', 'Bruneian', 'Brunei|Bruneian', '🇧🇳'],
+  ['KH', 'Cambodia', 'Campuchia', 'Cambodian', 'Cambodia|Khmer|Campuchia', '🇰🇭'],
+  ['CN', 'China', 'Trung Quốc', 'Chinese', 'Chinese|China|Trung Quốc', '🇨🇳'],
+  ['CY', 'Cyprus', 'Síp', 'Cypriot', 'Cyprus|Cypriot|Síp', '🇨🇾'],
+  ['GE', 'Georgia', 'Georgia', 'Georgian', 'Georgia|Georgian|Gruzia', '🇬🇪'],
+  ['IN', 'India', 'Ấn Độ', 'Indian', 'Indian|India|Ấn Độ', '🇮🇳'],
+  ['ID', 'Indonesia', 'Indonesia', 'Indonesian', 'Indonesia|Indonesian', '🇮🇩'],
+  ['IR', 'Iran', 'Iran', 'Iranian', 'Iran|Iranian|Persian', '🇮🇷'],
+  ['IQ', 'Iraq', 'Iraq', 'Iraqi', 'Iraq|Iraqi', '🇮🇶'],
+  ['IL', 'Israel', 'Israel', 'Israeli', 'Israel|Israeli', '🇮🇱'],
+  ['JP', 'Japan', 'Nhật Bản', 'Japanese', 'Japanese|Japan|Nhật Bản', '🇯🇵'],
+  ['JO', 'Jordan', 'Jordan', 'Jordanian', 'Jordan|Jordanian', '🇯🇴'],
+  ['KZ', 'Kazakhstan', 'Kazakhstan', 'Kazakh', 'Kazakhstan|Kazakh', '🇰🇿'],
+  ['KW', 'Kuwait', 'Kuwait', 'Kuwaiti', 'Kuwait|Kuwaiti', '🇰🇼'],
+  ['KG', 'Kyrgyzstan', 'Kyrgyzstan', 'Kyrgyz', 'Kyrgyzstan|Kyrgyz', '🇰🇬'],
+  ['LA', 'Laos', 'Lào', 'Lao', 'Laos|Lao|Lào', '🇱🇦'],
+  ['LB', 'Lebanon', 'Liban', 'Lebanese', 'Lebanon|Lebanese|Liban', '🇱🇧'],
+  ['MY', 'Malaysia', 'Malaysia', 'Malaysian', 'Malaysia|Malaysian', '🇲🇾'],
+  ['MV', 'Maldives', 'Maldives', 'Maldivian', 'Maldives|Maldivian', '🇲🇻'],
+  ['MN', 'Mongolia', 'Mông Cổ', 'Mongolian', 'Mongolia|Mongolian|Mông Cổ', '🇲🇳'],
+  ['MM', 'Myanmar', 'Myanmar', 'Burmese', 'Myanmar|Burmese|Burma', '🇲🇲'],
+  ['NP', 'Nepal', 'Nepal', 'Nepalese', 'Nepal|Nepalese', '🇳🇵'],
+  ['KP', 'North Korea', 'Triều Tiên', 'North Korean', 'North Korea|North Korean|DPRK|Triều Tiên', '🇰🇵'],
+  ['OM', 'Oman', 'Oman', 'Omani', 'Oman|Omani', '🇴🇲'],
+  ['PK', 'Pakistan', 'Pakistan', 'Pakistani', 'Pakistan|Pakistani', '🇵🇰'],
+  ['PS', 'Palestine', 'Palestine', 'Palestinian', 'Palestine|Palestinian', '🇵🇸'],
+  ['PH', 'Philippines', 'Philippines', 'Filipino', 'Filipino|Philippines|Philippine', '🇵🇭'],
+  ['QA', 'Qatar', 'Qatar', 'Qatari', 'Qatar|Qatari', '🇶🇦'],
+  ['SA', 'Saudi Arabia', 'Ả Rập Xê Út', 'Saudi Arabian', 'Saudi Arabia|Saudi|Saudi Arabian|Ả Rập Xê Út', '🇸🇦'],
+  ['SG', 'Singapore', 'Singapore', 'Singaporean', 'Singapore|Singaporean', '🇸🇬'],
+  ['KR', 'South Korea', 'Hàn Quốc', 'South Korean', 'South Korean|Korean|Hàn Quốc', '🇰🇷'],
+  ['LK', 'Sri Lanka', 'Sri Lanka', 'Sri Lankan', 'Sri Lanka|Sri Lankan', '🇱🇰'],
+  ['SY', 'Syria', 'Syria', 'Syrian', 'Syria|Syrian', '🇸🇾'],
+  ['TW', 'Taiwan', 'Đài Loan', 'Taiwanese', 'Taiwan|Taiwanese|Đài Loan', '🇹🇼'],
+  ['TJ', 'Tajikistan', 'Tajikistan', 'Tajik', 'Tajikistan|Tajik', '🇹🇯'],
+  ['TH', 'Thailand', 'Thái Lan', 'Thai', 'Thai|Thailand|Thái Lan', '🇹🇭'],
+  ['TL', 'Timor-Leste', 'Timor-Leste', 'Timorese', 'Timor-Leste|East Timor|Timor Leste', '🇹🇱'],
+  ['TR', 'Turkey', 'Thổ Nhĩ Kỳ', 'Turkish', 'Turkish|Turkey|Thổ Nhĩ Kỳ|Türkiye', '🇹🇷'],
+  ['TM', 'Turkmenistan', 'Turkmenistan', 'Turkmen', 'Turkmenistan|Turkmen', '🇹🇲'],
+  ['AE', 'United Arab Emirates', 'Các Tiểu Vương Quốc Ả Rập Thống Nhất', 'Emirati', 'United Arab Emirates|UAE|Emirati|Tiểu Vương Quốc', '🇦🇪'],
+  ['UZ', 'Uzbekistan', 'Uzbekistan', 'Uzbek', 'Uzbekistan|Uzbek', '🇺🇿'],
+  ['VN', 'Vietnam', 'Việt Nam', 'Vietnamese', 'Vietnamese|Vietnam|Việt Nam', '🇻🇳'],
+  ['YE', 'Yemen', 'Yemen', 'Yemeni', 'Yemen|Yemeni', '🇾🇪'],
+  // Europe
+  ['AL', 'Albania', 'Albania', 'Albanian', 'Albania|Albanian', '🇦🇱'],
+  ['AD', 'Andorra', 'Andorra', 'Andorran', 'Andorra|Andorran', '🇦🇩'],
+  ['AT', 'Austria', 'Áo', 'Austrian', 'Austrian|Austria|Áo', '🇦🇹'],
+  ['BY', 'Belarus', 'Belarus', 'Belarusian', 'Belarus|Belarusian|Belorussia', '🇧🇾'],
+  ['BE', 'Belgium', 'Bỉ', 'Belgian', 'Belgian|Belgium|Bỉ', '🇧🇪'],
+  ['BA', 'Bosnia and Herzegovina', 'Bosnia và Herzegovina', 'Bosnian', 'Bosnia|Bosnian|Bosnia and Herzegovina', '🇧🇦'],
+  ['BG', 'Bulgaria', 'Bulgaria', 'Bulgarian', 'Bulgaria|Bulgarian', '🇧🇬'],
+  ['HR', 'Croatia', 'Croatia', 'Croatian', 'Croatia|Croatian|Hrvatska', '🇭🇷'],
+  ['CZ', 'Czech Republic', 'Séc', 'Czech', 'Czech|Czech Republic|Czechia|Séc', '🇨🇿'],
+  ['DK', 'Denmark', 'Đan Mạch', 'Danish', 'Danish|Denmark|Đan Mạch', '🇩🇰'],
+  ['EE', 'Estonia', 'Estonia', 'Estonian', 'Estonia|Estonian', '🇪🇪'],
+  ['FI', 'Finland', 'Phần Lan', 'Finnish', 'Finnish|Finland|Suomi|Phần Lan', '🇫🇮'],
+  ['FR', 'France', 'Pháp', 'French', 'French|France|Pháp', '🇫🇷'],
+  ['DE', 'Germany', 'Đức', 'German', 'German|Germany|Deutschland|Đức', '🇩🇪'],
+  ['GR', 'Greece', 'Hy Lạp', 'Greek', 'Greek|Greece|Hellas|Hy Lạp', '🇬🇷'],
+  ['HU', 'Hungary', 'Hungary', 'Hungarian', 'Hungarian|Hungary|Magyarország', '🇭🇺'],
+  ['IS', 'Iceland', 'Iceland', 'Icelandic', 'Iceland|Icelandic|Ísland', '🇮🇸'],
+  ['IE', 'Ireland', 'Ireland', 'Irish', 'Irish|Ireland|Éire', '🇮🇪'],
+  ['IT', 'Italy', 'Ý', 'Italian', 'Italian|Italy|Ý', '🇮🇹'],
+  ['XK', 'Kosovo', 'Kosovo', 'Kosovar', 'Kosovo|Kosovar', '🇽🇰'],
+  ['LV', 'Latvia', 'Latvia', 'Latvian', 'Latvia|Latvian|Latvija', '🇱🇻'],
+  ['LI', 'Liechtenstein', 'Liechtenstein', 'Liechtensteiner', 'Liechtenstein|Liechtensteiner', '🇱🇮'],
+  ['LT', 'Lithuania', 'Lithuania', 'Lithuanian', 'Lithuania|Lithuanian|Lietuva', '🇱🇹'],
+  ['LU', 'Luxembourg', 'Luxembourg', 'Luxembourger', 'Luxembourg|Luxembourger', '🇱🇺'],
+  ['MT', 'Malta', 'Malta', 'Maltese', 'Malta|Maltese', '🇲🇹'],
+  ['MD', 'Moldova', 'Moldova', 'Moldovan', 'Moldova|Moldovan', '🇲🇩'],
+  ['MC', 'Monaco', 'Monaco', 'Monégasque', 'Monaco|Monégasque', '🇲🇨'],
+  ['ME', 'Montenegro', 'Montenegro', 'Montenegrin', 'Montenegro|Montenegrin|Crna Gora', '🇲🇪'],
+  ['NL', 'Netherlands', 'Hà Lan', 'Dutch', 'Dutch|Netherlands|Holland|Hà Lan', '🇳🇱'],
+  ['MK', 'North Macedonia', 'Bắc Macedonia', 'Macedonian', 'North Macedonia|Macedonian|Bắc Macedonia', '🇲🇰'],
+  ['NO', 'Norway', 'Na Uy', 'Norwegian', 'Norwegian|Norway|Norge|Na Uy', '🇳🇴'],
+  ['PL', 'Poland', 'Ba Lan', 'Polish', 'Polish|Poland|Ba Lan|Polska', '🇵🇱'],
+  ['PT', 'Portugal', 'Bồ Đào Nha', 'Portuguese', 'Portuguese|Portugal|Bồ Đào Nha', '🇵🇹'],
+  ['RO', 'Romania', 'Romania', 'Romanian', 'Romanian|Romania|România', '🇷🇴'],
+  ['RU', 'Russia', 'Nga', 'Russian', 'Russian|Russia|Soviet|Nga|Rossiya', '🇷🇺'],
+  ['SM', 'San Marino', 'San Marino', 'Sammarinese', 'San Marino|Sammarinese', '🇸🇲'],
+  ['RS', 'Serbia', 'Serbia', 'Serbian', 'Serbian|Serbia|Srbija', '🇷🇸'],
+  ['SK', 'Slovakia', 'Slovakia', 'Slovak', 'Slovak|Slovakia|Slovensko', '🇸🇰'],
+  ['SI', 'Slovenia', 'Slovenia', 'Slovenian', 'Slovenian|Slovenia|Slovenija', '🇸🇮'],
+  ['ES', 'Spain', 'Tây Ban Nha', 'Spanish', 'Spanish|Spain|Tây Ban Nha|España', '🇪🇸'],
+  ['SE', 'Sweden', 'Thụy Điển', 'Swedish', 'Swedish|Sweden|Sverige|Thụy Điển', '🇸🇪'],
+  ['CH', 'Switzerland', 'Thụy Sĩ', 'Swiss', 'Swiss|Switzerland|Thụy Sĩ|Swiss Confederation', '🇨🇭'],
+  ['UA', 'Ukraine', 'Ukraine', 'Ukrainian', 'Ukrainian|Ukraine|Ukrayina', '🇺🇦'],
+  ['GB', 'United Kingdom', 'Vương quốc Anh', 'British', 'British|United Kingdom|UK|England|Scotland|Wales|Vương quốc Anh', '🇬🇧'],
+  ['VA', 'Vatican City', 'Vatican', 'Vatican', 'Vatican|Vatican City|Holy See', '🇻🇦'],
+  // Americas
+  ['AG', 'Antigua and Barbuda', 'Antigua và Barbuda', 'Antiguan', 'Antigua|Barbuda|Antiguan', '🇦🇬'],
+  ['AR', 'Argentina', 'Argentina', 'Argentine', 'Argentine|Argentina|Argentinian', '🇦🇷'],
+  ['BS', 'Bahamas', 'Bahamas', 'Bahamian', 'Bahamas|Bahamian', '🇧🇸'],
+  ['BB', 'Barbados', 'Barbados', 'Barbadian', 'Barbados|Barbadian', '🇧🇧'],
+  ['BZ', 'Belize', 'Belize', 'Belizean', 'Belize|Belizean', '🇧🇿'],
+  ['BO', 'Bolivia', 'Bolivia', 'Bolivian', 'Bolivian|Bolivia', '🇧🇴'],
+  ['BR', 'Brazil', 'Brazil', 'Brazilian', 'Brazilian|Brazil|Brasil', '🇧🇷'],
   ['CA', 'Canada', 'Canada', 'Canadian', 'Canadian|Canada', '🇨🇦'],
-  ['AU', 'Australia', 'Úc', 'Australian', 'Australian|Australia', '🇦🇺'],
-  ['EG', 'Egypt', 'Ai Cập', 'Egyptian', 'Egyptian|Egypt', '🇪🇬'],
+  ['CL', 'Chile', 'Chile', 'Chilean', 'Chilean|Chile', '🇨🇱'],
+  ['CO', 'Colombia', 'Colombia', 'Colombian', 'Colombian|Colombia', '🇨🇴'],
+  ['CR', 'Costa Rica', 'Costa Rica', 'Costa Rican', 'Costa Rica|Costa Rican', '🇨🇷'],
+  ['CU', 'Cuba', 'Cuba', 'Cuban', 'Cuban|Cuba', '🇨🇺'],
+  ['DM', 'Dominica', 'Dominica', 'Dominican', 'Dominica|Dominican', '🇩🇲'],
+  ['DO', 'Dominican Republic', 'Cộng hòa Dominican', 'Dominican', 'Dominican Republic|Dominican|Dominicana', '🇩🇴'],
+  ['EC', 'Ecuador', 'Ecuador', 'Ecuadorian', 'Ecuadorian|Ecuador', '🇪🇨'],
+  ['SV', 'El Salvador', 'El Salvador', 'Salvadoran', 'El Salvador|Salvadoran|Salvador', '🇸🇻'],
+  ['GD', 'Grenada', 'Grenada', 'Grenadian', 'Grenada|Grenadian', '🇬🇩'],
+  ['GT', 'Guatemala', 'Guatemala', 'Guatemalan', 'Guatemalan|Guatemala', '🇬🇹'],
+  ['GY', 'Guyana', 'Guyana', 'Guyanese', 'Guyana|Guyanese', '🇬🇾'],
+  ['HT', 'Haiti', 'Haiti', 'Haitian', 'Haiti|Haitian', '🇭🇹'],
+  ['HN', 'Honduras', 'Honduras', 'Honduran', 'Honduran|Honduras', '🇭🇳'],
+  ['JM', 'Jamaica', 'Jamaica', 'Jamaican', 'Jamaican|Jamaica', '🇯🇲'],
+  ['MX', 'Mexico', 'Mexico', 'Mexican', 'Mexican|Mexico|México', '🇲🇽'],
+  ['NI', 'Nicaragua', 'Nicaragua', 'Nicaraguan', 'Nicaragua|Nicaraguan', '🇳🇮'],
+  ['PA', 'Panama', 'Panama', 'Panamanian', 'Panama|Panamanian', '🇵🇦'],
+  ['PY', 'Paraguay', 'Paraguay', 'Paraguayan', 'Paraguayan|Paraguay', '🇵🇾'],
+  ['PE', 'Peru', 'Peru', 'Peruvian', 'Peruvian|Peru|Perú', '🇵🇪'],
+  ['KN', 'Saint Kitts and Nevis', 'Saint Kitts và Nevis', 'Kittitian', 'Saint Kitts|Nevis|Kittitian', '🇰🇳'],
+  ['LC', 'Saint Lucia', 'Saint Lucia', 'Saint Lucian', 'Saint Lucia|Saint Lucian', '🇱🇨'],
+  ['VC', 'Saint Vincent and the Grenadines', 'Saint Vincent và Grenadines', 'Vincentian', 'Saint Vincent|Vincentian|Grenadines', '🇻🇨'],
+  ['SR', 'Suriname', 'Suriname', 'Surinamese', 'Suriname|Surinamese', '🇸🇷'],
+  ['TT', 'Trinidad and Tobago', 'Trinidad và Tobago', 'Trinidadian', 'Trinidad|Tobago|Trinidadian', '🇹🇹'],
+  ['US', 'United States', 'Hoa Kỳ', 'American', 'American|United States|USA|US|Hoa Kỳ', '🇺🇸'],
+  ['UY', 'Uruguay', 'Uruguay', 'Uruguayan', 'Uruguayan|Uruguay', '🇺🇾'],
+  ['VE', 'Venezuela', 'Venezuela', 'Venezuelan', 'Venezuelan|Venezuela', '🇻🇪'],
+  // Africa
+  ['DZ', 'Algeria', 'Algeria', 'Algerian', 'Algerian|Algeria', '🇩🇿'],
+  ['AO', 'Angola', 'Angola', 'Angolan', 'Angolan|Angola', '🇦🇴'],
+  ['BJ', 'Benin', 'Benin', 'Beninese', 'Benin|Beninese', '🇧🇯'],
+  ['BW', 'Botswana', 'Botswana', 'Botswanan', 'Botswana|Botswanan', '🇧🇼'],
+  ['BF', 'Burkina Faso', 'Burkina Faso', 'Burkinabé', 'Burkina Faso|Burkinabé', '🇧🇫'],
+  ['BI', 'Burundi', 'Burundi', 'Burundian', 'Burundi|Burundian', '🇧🇮'],
+  ['CV', 'Cabo Verde', 'Cape Verde', 'Cabo Verdean', 'Cabo Verde|Cape Verde|Cabo Verdean', '🇨🇻'],
+  ['CM', 'Cameroon', 'Cameroon', 'Cameroonian', 'Cameroon|Cameroonian', '🇨🇲'],
+  ['CF', 'Central African Republic', 'Cộng hòa Trung Phi', 'Central African', 'Central African Republic|Central African|CAR', '🇨🇫'],
+  ['TD', 'Chad', 'Chad', 'Chadian', 'Chadian|Chad', '🇹🇩'],
+  ['KM', 'Comoros', 'Comoros', 'Comoran', 'Comoros|Comoran', '🇰🇲'],
+  ['CG', 'Congo', 'Congo', 'Congolese', 'Congo|Congolese|Republic of the Congo', '🇨🇬'],
+  ['CD', 'Democratic Republic of the Congo', 'Cộng hòa Dân chủ Congo', 'Congolese', 'Democratic Republic of the Congo|DRC|Congo Kinshasa', '🇨🇩'],
+  ['DJ', 'Djibouti', 'Djibouti', 'Djiboutian', 'Djibouti|Djiboutian', '🇩🇯'],
+  ['EG', 'Egypt', 'Ai Cập', 'Egyptian', 'Egyptian|Egypt|Ai Cập', '🇪🇬'],
+  ['GQ', 'Equatorial Guinea', 'Guinea Xích Đạo', 'Equatorial Guinean', 'Equatorial Guinea|Equatorial Guinean', '🇬🇶'],
+  ['ER', 'Eritrea', 'Eritrea', 'Eritrean', 'Eritrea|Eritrean', '🇪🇷'],
+  ['SZ', 'Eswatini', 'Eswatini', 'Swazi', 'Eswatini|Swaziland|Swazi', '🇸🇿'],
+  ['ET', 'Ethiopia', 'Ethiopia', 'Ethiopian', 'Ethiopian|Ethiopia|Abyssinia', '🇪🇹'],
+  ['GA', 'Gabon', 'Gabon', 'Gabonese', 'Gabon|Gabonese', '🇬🇦'],
+  ['GM', 'Gambia', 'Gambia', 'Gambian', 'Gambia|Gambian', '🇬🇲'],
+  ['GH', 'Ghana', 'Ghana', 'Ghanaian', 'Ghanaian|Ghana', '🇬🇭'],
+  ['GN', 'Guinea', 'Guinea', 'Guinean', 'Guinea|Guinean', '🇬🇳'],
+  ['GW', 'Guinea-Bissau', 'Guinea-Bissau', 'Bissau-Guinean', 'Guinea-Bissau|Bissau|Guinea Bissau', '🇬🇼'],
+  ['CI', 'Ivory Coast', 'Bờ Biển Ngà', 'Ivorian', 'Ivory Coast|Côte d\'Ivoire|Ivorian|Bờ Biển Ngà', '🇨🇮'],
+  ['KE', 'Kenya', 'Kenya', 'Kenyan', 'Kenyan|Kenya', '🇰🇪'],
+  ['LS', 'Lesotho', 'Lesotho', 'Basotho', 'Lesotho|Basotho', '🇱🇸'],
+  ['LR', 'Liberia', 'Liberia', 'Liberian', 'Liberia|Liberian', '🇱🇷'],
+  ['LY', 'Libya', 'Libya', 'Libyan', 'Libyan|Libya', '🇱🇾'],
+  ['MG', 'Madagascar', 'Madagascar', 'Malagasy', 'Madagascar|Malagasy', '🇲🇬'],
+  ['MW', 'Malawi', 'Malawi', 'Malawian', 'Malawi|Malawian', '🇲🇼'],
+  ['ML', 'Mali', 'Mali', 'Malian', 'Malian|Mali', '🇲🇱'],
+  ['MR', 'Mauritania', 'Mauritania', 'Mauritanian', 'Mauritania|Mauritanian', '🇲🇷'],
+  ['MU', 'Mauritius', 'Mauritius', 'Mauritian', 'Mauritius|Mauritian', '🇲🇺'],
+  ['MA', 'Morocco', 'Maroc', 'Moroccan', 'Moroccan|Morocco|Maroc|Maghreb', '🇲🇦'],
+  ['MZ', 'Mozambique', 'Mozambique', 'Mozambican', 'Mozambican|Mozambique', '🇲🇿'],
+  ['NA', 'Namibia', 'Namibia', 'Namibian', 'Namibian|Namibia', '🇳🇦'],
+  ['NE', 'Niger', 'Niger', 'Nigerien', 'Niger|Nigerien', '🇳🇪'],
   ['NG', 'Nigeria', 'Nigeria', 'Nigerian', 'Nigerian|Nigeria', '🇳🇬'],
-  ['ZA', 'South Africa', 'Nam Phi', 'South African', 'South African', '🇿🇦'],
-  ['TR', 'Turkey', 'Thổ Nhĩ Kỳ', 'Turkish', 'Turkish|Turkey', '🇹🇷'],
-  ['SE', 'Sweden', 'Thụy Điển', 'Swedish', 'Swedish|Sweden', '🇸🇪'],
-  ['PL', 'Poland', 'Ba Lan', 'Polish', 'Polish|Poland', '🇵🇱'],
-  ['NL', 'Netherlands', 'Hà Lan', 'Dutch', 'Dutch|Netherlands', '🇳🇱'],
-  ['AR', 'Argentina', 'Argentina', 'Argentine', 'Argentine|Argentina', '🇦🇷'],
-  ['TH', 'Thailand', 'Thái Lan', 'Thai', 'Thai|Thailand', '🇹🇭'],
-  ['ID', 'Indonesia', 'Indonesia', 'Indonesian', 'Indonesian|Indonesia', '🇮🇩'],
-  ['IE', 'Ireland', 'Ireland', 'Irish', 'Irish|Ireland', '🇮🇪'],
-  ['GR', 'Greece', 'Hy Lạp', 'Greek', 'Greek|Greece', '🇬🇷'],
-  ['IR', 'Iran', 'Iran', 'Iranian', 'Iranian|Iran', '🇮🇷'],
-  ['PH', 'Philippines', 'Philippines', 'Filipino', 'Filipino|Philippine', '🇵🇭']
+  ['RW', 'Rwanda', 'Rwanda', 'Rwandan', 'Rwandan|Rwanda', '🇷🇼'],
+  ['ST', 'Sao Tome and Principe', 'Sao Tome và Principe', 'Sao Tomean', 'Sao Tome|Principe|Sao Tomean', '🇸🇹'],
+  ['SN', 'Senegal', 'Senegal', 'Senegalese', 'Senegalese|Senegal', '🇸🇳'],
+  ['SC', 'Seychelles', 'Seychelles', 'Seychellois', 'Seychelles|Seychellois', '🇸🇨'],
+  ['SL', 'Sierra Leone', 'Sierra Leone', 'Sierra Leonean', 'Sierra Leone|Sierra Leonean', '🇸🇱'],
+  ['SO', 'Somalia', 'Somalia', 'Somali', 'Somali|Somalia', '🇸🇴'],
+  ['ZA', 'South Africa', 'Nam Phi', 'South African', 'South African|South Africa|Nam Phi', '🇿🇦'],
+  ['SS', 'South Sudan', 'Nam Sudan', 'South Sudanese', 'South Sudan|South Sudanese', '🇸🇸'],
+  ['SD', 'Sudan', 'Sudan', 'Sudanese', 'Sudanese|Sudan', '🇸🇩'],
+  ['TZ', 'Tanzania', 'Tanzania', 'Tanzanian', 'Tanzanian|Tanzania', '🇹🇿'],
+  ['TG', 'Togo', 'Togo', 'Togolese', 'Togolese|Togo', '🇹🇬'],
+  ['TN', 'Tunisia', 'Tunisia', 'Tunisian', 'Tunisian|Tunisia', '🇹🇳'],
+  ['UG', 'Uganda', 'Uganda', 'Ugandan', 'Ugandan|Uganda', '🇺🇬'],
+  ['ZM', 'Zambia', 'Zambia', 'Zambian', 'Zambian|Zambia', '🇿🇲'],
+  ['ZW', 'Zimbabwe', 'Zimbabwe', 'Zimbabwean', 'Zimbabwean|Zimbabwe', '🇿🇼'],
+  // Oceania
+  ['AU', 'Australia', 'Úc', 'Australian', 'Australian|Australia|Úc', '🇦🇺'],
+  ['FJ', 'Fiji', 'Fiji', 'Fijian', 'Fijian|Fiji', '🇫🇯'],
+  ['KI', 'Kiribati', 'Kiribati', 'I-Kiribati', 'Kiribati|I-Kiribati', '🇰🇮'],
+  ['MH', 'Marshall Islands', 'Quần đảo Marshall', 'Marshallese', 'Marshall Islands|Marshallese', '🇲🇭'],
+  ['FM', 'Micronesia', 'Micronesia', 'Micronesian', 'Micronesia|Micronesian|FSM', '🇫🇲'],
+  ['NR', 'Nauru', 'Nauru', 'Nauruan', 'Nauru|Nauruan', '🇳🇷'],
+  ['NZ', 'New Zealand', 'New Zealand', 'New Zealander', 'New Zealand|New Zealander|Aotearoa', '🇳🇿'],
+  ['PW', 'Palau', 'Palau', 'Palauan', 'Palau|Palauan', '🇵🇼'],
+  ['PG', 'Papua New Guinea', 'Papua New Guinea', 'Papua New Guinean', 'Papua New Guinea|Papua New Guinean|PNG', '🇵🇬'],
+  ['WS', 'Samoa', 'Samoa', 'Samoan', 'Samoan|Samoa', '🇼🇸'],
+  ['SB', 'Solomon Islands', 'Quần đảo Solomon', 'Solomon Islander', 'Solomon Islands|Solomon Islander', '🇸🇧'],
+  ['TO', 'Tonga', 'Tonga', 'Tongan', 'Tongan|Tonga', '🇹🇴'],
+  ['TV', 'Tuvalu', 'Tuvalu', 'Tuvaluan', 'Tuvalu|Tuvaluan', '🇹🇻'],
+  ['VU', 'Vanuatu', 'Vanuatu', 'Ni-Vanuatu', 'Vanuatu|Ni-Vanuatu', '🇻🇺']
 ];
 
+export const COUNTRIES = WORLD_COUNTRIES;
+
 export const CRX = COUNTRIES.filter(c => c[4]).map(c => [c[0], new RegExp('\\b(' + c[4] + ')\\b', 'i')]);
+
+/**
+ * HOBBY_SEMANTIC_MAP — expands player hobbies & traits (VI & EN) into a set of
+ * semantic keywords used by the Weighted Similarity Engine (Stage 2).
+ * Each hobby/trait maps to a list of lowercase keyword tokens. The scorer counts
+ * keyword hits in the candidate's bio/role text to compute m ∈ [0, 1].
+ */
+export const HOBBY_SEMANTIC_MAP = {
+  // --- VI hobbies/traits ---
+  'code game': ['programmer', 'computer', 'software', 'engineer', 'inventor', 'game', 'technology', 'kỹ sư', 'nhà phát minh', 'coder', 'điện toán', 'máy tính', 'phần mềm'],
+  'lập trình': ['programmer', 'computer', 'software', 'engineer', 'inventor', 'game', 'technology', 'kỹ sư', 'nhà phát minh', 'coder', 'điện toán', 'máy tính'],
+  'code': ['programmer', 'computer', 'software', 'engineer', 'inventor', 'technology', 'coder', 'điện toán', 'máy tính', 'phần mềm'],
+  'âm nhạc': ['musician', 'composer', 'singer', 'nhạc sĩ', 'ca sĩ', 'music', 'nhạc', 'ca sĩ', 'nhạc sĩ'],
+  'nhạc': ['musician', 'composer', 'singer', 'nhạc sĩ', 'ca sĩ', 'music', 'nhạc'],
+  'khoa học': ['scientist', 'physicist', 'chemist', 'mathematician', 'nhà khoa học', 'vật lý', 'hóa học', 'toán học'],
+  'võ thuật': ['martial artist', 'warrior', 'general', 'soldier', 'tướng', 'võ sư', 'fighter', 'combat', 'kẻ chiến đấu'],
+  'đánh nhau': ['martial artist', 'warrior', 'general', 'soldier', 'tướng', 'võ sư', 'fighter', 'combat', 'kẻ chiến đấu'],
+  'vẽ': ['painter', 'artist', 'họa sĩ', 'art', 'họa', 'chiến tranh', 'painting'],
+  'họa sĩ': ['painter', 'artist', 'họa sĩ', 'art'],
+  'thiên văn': ['astronomer', 'astronomy', 'thiên văn', 'ngôi sao', 'vũ trụ', 'cosmos'],
+  'văn học': ['writer', 'novel', 'poet', 'nhà văn', 'nhà thơ', 'literature', 'văn học'],
+  'thể thao': ['athlete', 'footballer', 'boxer', 'runner', 'thể thao', 'cầu thủ', 'võ sĩ', 'sport'],
+  'du lịch': ['explorer', 'traveler', 'thám hiểm', 'du khách', 'voyage', 'exploration'],
+  // --- EN hobbies/traits ---
+  'programming': ['programmer', 'computer', 'software', 'engineer', 'inventor', 'technology', 'coder', 'software engineer'],
+  'coding': ['programmer', 'computer', 'software', 'engineer', 'inventor', 'technology', 'coder'],
+  'technology': ['programmer', 'computer', 'software', 'engineer', 'inventor', 'technology', 'tech'],
+  'music': ['musician', 'composer', 'singer', 'music', 'song', 'album'],
+  'singing': ['singer', 'musician', 'vocal', 'ca sĩ'],
+  'science': ['scientist', 'physicist', 'chemist', 'mathematician', 'nhà khoa học', 'research'],
+  'physics': ['physicist', 'scientist', 'vật lý', 'quantum', 'relativity'],
+  'martial arts': ['martial artist', 'warrior', 'fighter', 'combat', 'kung fu', 'võ thuật'],
+  'fighting': ['martial artist', 'warrior', 'fighter', 'combat', 'soldier'],
+  'painting': ['painter', 'artist', 'họa sĩ', 'art', 'canvas', 'painting'],
+  'astronomy': ['astronomer', 'astronomy', 'thiên văn', 'star', 'cosmos', 'space'],
+  'writing': ['writer', 'novel', 'author', 'nhà văn', 'book', 'literature'],
+  'sports': ['athlete', 'footballer', 'boxer', 'runner', 'thể thao', 'sport', 'game'],
+  'travel': ['explorer', 'traveler', 'thám hiểm', 'voyage', 'journey'],
+  'collect': ['collector', 'sưu tầm', 'collecting', 'hoarder'],
+  'chess': ['chess', 'cờ', 'strategist', 'tactician', 'board game'],
+  'gardening': ['gardener', 'tree', 'plant', 'cây', 'thảo mộc', 'nature'],
+  'cooking': ['cook', 'chef', 'bếp', 'nấu ăn', 'food', 'culinary'],
+  'photography': ['photographer', 'camera', 'photo', 'ảnh', 'ảnh ảnh'],
+  'dance': ['dancer', 'dance', 'múa', 'dancing', 'ballet'],
+  'acting': ['actor', 'actress', 'diễn viên', 'acting', 'theater', 'cinema'],
+  'filmmaking': ['director', 'film', 'phim', 'cinema', 'đạo diễn'],
+  'reading': ['reader', 'book', 'sách', 'reading', 'literature'],
+  'gaming': ['gamer', 'game', 'video game', 'trò chơi', 'player'],
+};
+
+// Map from a raw hobby string to canonical map keys (fuzzy VI/EN matching).
+export const HOBBY_MAP_ALIASES = {
+  'code game': ['code game', 'lập trình', 'code', 'programming', 'coding', 'technology'],
+  'âm nhạc': ['âm nhạc', 'nhạc', 'music', 'singing'],
+  'khoa học': ['khoa học', 'science', 'physics'],
+  'võ thuật': ['võ thuật', 'martial arts', 'fighting'],
+  'đánh nhau': ['đánh nhau', 'martial arts', 'fighting'],
+  'vẽ': ['vẽ', 'họa sĩ', 'painting', 'art'],
+  'thiên văn': ['thiên văn', 'astronomy', 'space'],
+  'văn học': ['văn học', 'writing', 'literature'],
+  'thể thao': ['thể thao', 'sports', 'football'],
+  'du lịch': ['du lịch', 'travel', 'exploration'],
+  'programming': ['programming', 'coding', 'code game', 'technology'],
+  'coding': ['coding', 'programming', 'code game'],
+  'technology': ['technology', 'code game', 'programming'],
+  'music': ['music', 'âm nhạc', 'nhạc'],
+  'singing': ['singing', 'âm nhạc', 'music'],
+  'science': ['science', 'khoa học', 'physics'],
+  'physics': ['physics', 'science', 'khoa học'],
+  'martial arts': ['martial arts', 'võ thuật', 'đánh nhau'],
+  'fighting': ['fighting', 'martial arts', 'võ thuật'],
+  'painting': ['painting', 'vẽ', 'họa sĩ', 'art'],
+  'astronomy': ['astronomy', 'thiên văn', 'space'],
+  'writing': ['writing', 'văn học', 'literature'],
+  'sports': ['sports', 'thể thao', 'football'],
+  'travel': ['travel', 'du lịch', 'exploration'],
+  'collect': ['collect', 'sưu tầm', 'collecting'],
+  'chess': ['chess', 'cờ', 'strategist'],
+  'gardening': ['gardening', 'cây', 'nature'],
+  'cooking': ['cooking', 'nấu ăn', 'food', 'chef'],
+  'photography': ['photography', 'ảnh', 'camera'],
+  'dance': ['dance', 'múa', 'dancing'],
+  'acting': ['acting', 'diễn viên', 'actor'],
+  'filmmaking': ['filmmaking', 'đạo diễn', 'film'],
+  'reading': ['reading', 'sách', 'book'],
+  'gaming': ['gaming', 'game', 'video game'],
+};
+
+export function hobbyKeywordsFor(inputHobby, trait) {
+  const raw = String((inputHobby || '') + ' ' + (trait || '')).trim().toLowerCase();
+  if (!raw) return [];
+  const keys = new Set();
+  // Direct key match.
+  if (HOBBY_SEMANTIC_MAP[raw]) keys.add(raw);
+  // Alias expansion.
+  for (const [alias, expansions] of Object.entries(HOBBY_MAP_ALIASES)) {
+    if (raw === alias || raw.includes(alias) || alias.includes(raw)) {
+      expansions.forEach(k => keys.add(k));
+    }
+  }
+  // Substring match against known keys.
+  for (const key of Object.keys(HOBBY_SEMANTIC_MAP)) {
+    if (raw.includes(key) || key.includes(raw)) keys.add(key);
+  }
+  // Also add raw word tokens as direct keyword matches.
+  const tokens = raw.split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 2);
+  tokens.forEach(t => keys.add(t));
+  // Collect all keywords.
+  const kw = new Set();
+  keys.forEach(k => {
+    const list = HOBBY_SEMANTIC_MAP[k];
+    if (Array.isArray(list)) list.forEach(x => kw.add(x));
+    else kw.add(k);
+  });
+  tokens.forEach(t => kw.add(t));
+  return [...kw];
+}
 
 export const ERAS = [
   ['any', 'Any Era / All-Time', 'Mọi kỷ nguyên (Any Era / All-Time)', -3000, 2026],
@@ -70,6 +367,12 @@ export const RELIGIONS = [
   ['judaism', 'Judaism', 'Do Thái giáo (Judaism)', 'Judaism|Jewish|Do Thái giáo'],
   ['atheist', 'Atheist / Secular', 'Vô thần / Triết học (Atheist / Secular)', 'Atheist|Atheism|Secular|Philosophical|Agnostic|Vô thần|Triết học'],
   ['polytheism', 'Polytheism / Pagans', 'Thần thoại / Đa thần (Polytheism / Pagans)', 'Polytheism|Pagan|Mythology|Greek mythology|Norse mythology|Pantheon|Đa thần|Thần thoại']
+];
+
+export const UNIVERSES = [
+  ['historical', 'Historical Figures (Real History)', 'Lịch sử Thực tế (Nhân vật Lịch sử)'],
+  ['fictional', 'Fictional Worlds (Game, Anime, Movies)', 'Thế giới Giả tưởng (Game, Phim, Anime/Hoạt hình)'],
+  ['multiverse', 'Multiverse (All Universes)', 'Đa vũ trụ Hỗn hợp (Toàn bộ Vũ trụ)']
 ];
 
 export const TG = [
@@ -190,6 +493,12 @@ export const I18N = {
     role_scammer: 'Time-Traveling Scammer',
     role_roommate: 'Unfortunate Roommate',
     targetH: '🎯 Target Attribute Console',
+    universeL: 'Universe Scope',
+    univ_historical: 'Historical Figures (Real History)',
+    univ_fictional: 'Fictional Worlds (Game, Anime, Movies)',
+    univ_multiverse: 'Multiverse (All Universes)',
+    adminPoolH: '🛠️ Character Pool & Entity Inspector',
+    adminPoolTip: 'Open the Admin Pool Inspector (Dev Only)',
     skinL: 'Skin tone (RGB / presets)',
     tgenderL: 'Target gender identity',
     eraL: 'Historical Era / Time Period',
@@ -207,6 +516,12 @@ export const I18N = {
     absd0: 'Grounded in real Wikipedia facts — the user only sneaks into the margins.',
     absd1: 'Ironic twists and chaotic synergy between you and the target.',
     absd2: 'Multiverse madness: magic and sci-fi layered over a real timeline.',
+    storyToneL: 'Story Tone / Thể loại cốt truyện',
+    storyTonePh: 'Pick the narrative style',
+    tone_comedy: '😂 Comedy & Absurd',
+    tone_epic: '⚔️ Epic & Heroic',
+    tone_tragic: '😢 Tragic & Melancholic',
+    tone_mystery: '🔍 Mystery & Thriller',
     randomAll: '🎲 Gacha Random All',
     unlockAll: '🔓 Unlock all',
     lockOn: 'Locked — Random All keeps this',
@@ -348,6 +663,12 @@ export const I18N = {
     role_scammer: 'Kẻ Lừa Đảo Xuyên Thời Gian',
     role_roommate: 'Người Bạn Cùng Phòng Xui Xẻo',
     targetH: '🎯 Bảng điều khiển thuộc tính mục tiêu',
+    universeL: 'Phạm vi Vũ trụ',
+    univ_historical: 'Lịch sử Thực tế (Nhân vật Lịch sử)',
+    univ_fictional: 'Thế giới Giả tưởng (Game, Phim, Anime/Hoạt hình)',
+    univ_multiverse: 'Đa vũ trụ Hỗn hợp (Toàn bộ Vũ trụ)',
+    adminPoolH: '🛠️ Kiểm tra Danh sách Nhân vật & Thực thể',
+    adminPoolTip: 'Mở trình kiểm tra Danh sách Nhân vật (Chỉ dành cho Dev)',
     skinL: 'Màu da (RGB / mẫu sẵn)',
     tgenderL: 'Bản dạng giới của mục tiêu',
     eraL: 'Thời kỳ / Kỷ nguyên lịch sử',
@@ -365,6 +686,12 @@ export const I18N = {
     absd0: 'Bám sát sự thật trên Wikipedia — bạn chỉ lén xuất hiện ở lề trang.',
     absd1: 'Những cú twist mỉa mai và sự ăn ý hỗn loạn giữa bạn và mục tiêu.',
     absd2: 'Đa vũ trụ điên loạn: phép thuật và khoa học viễn tưởng phủ lên dòng thời gian thật.',
+    storyToneL: 'Thể loại cốt chuyện',
+    storyTonePh: 'Chọn phong cách kể chuyện',
+    tone_comedy: '😂 Hài hước / Bựa',
+    tone_epic: '⚔️ Hào hùng / Sử thi',
+    tone_tragic: '😢 Bi tráng / Cảm động',
+    tone_mystery: '🔍 Bí ẩn / Kinh dị',
     randomAll: '🎲 Gacha ngẫu nhiên tất cả',
     unlockAll: '🔓 Mở khóa hết',
     lockOn: 'Đã khóa — Ngẫu nhiên tất cả sẽ giữ nguyên',
@@ -400,9 +727,15 @@ export const I18N = {
     ch1: 'Chương 1 — Cuộc gặp định mệnh',
     ch2: 'Chương 2 — Cuộc phiêu lưu lịch sử',
     ch3: 'Chương 3 — Bí mật Wikipedia bị lộ',
+    ch4: 'Chương 4 — Cược cuối cùng',
     butterfly: '🦋 Hiệu ứng cánh bướm — chọn lời khuyên tệ hại bạn thì thầm trước cao trào',
     itemGot: '🏺 Nhận được Vật Bị Nguyền',
     saved: 'Đã thêm vào Bảo tàng Vật thể Kỳ quặc.',
+    gemReward: 'Phần thưởng đá quý',
+    bridge: 'Giữa chừng',
+    bridgePerfect: 'Hoàn hảo! Thách thức được giải quyết một cách kín đáo. Vũ trụ run lên.',
+    bridgeSuccess: 'Thành công! Chướng ngại vật đã qua. Lịch sử hít một hơi và tiếp tục.',
+    bridgeFail: 'Thử thách thất bại. Nhưng thất bại chỉ là một đường đi — chuyện tìm lối khác.',
     modeOff: 'Động cơ truyện ngoại tuyến',
     modeLLM: 'LLM: {p}',
     skipTip: 'Mẹo: bấm vào chữ để bỏ qua hiệu ứng gõ máy.',
@@ -459,6 +792,14 @@ export class UserProfileModel {
     return UserProfileModel.instance ? UserProfileModel.instance.getBirthYear() : 1900;
   }
 
+  // Story tone state — unlocked by the trigger profile below.
+  static STORY_TONE_TRIGGER = {
+    name: 'datmtp12345',
+    age: '20',
+    role: 'dev',
+    hobby: 'code game'
+  };
+
   constructor() {
     UserProfileModel.instance = this;
     this.storageKey = 'wg_form';
@@ -468,6 +809,8 @@ export class UserProfileModel {
     this.exportsKey = 'wg_exports';
     this.langKey = 'wg_lang';
     this.themeKey = 'wg_theme';
+    this.toneKey = 'wg_tone';
+    this.storyTone = this._load(this.toneKey, 'comedy');
     this.userId = null;
     this._syncTimer = null;
     this._gemListeners = [];
@@ -483,6 +826,7 @@ export class UserProfileModel {
     this.theme = this._load(this.themeKey, 'dark');
 
     this.locks = {
+      universe: false,
       skin: false,
       tgender: false,
       era: false,
@@ -495,6 +839,7 @@ export class UserProfileModel {
     };
 
     this.fields = {
+      universe: 'historical',
       uName: '',
       uAge: 25,
       uGender: '',
@@ -514,7 +859,49 @@ export class UserProfileModel {
       absurd: 50
     };
 
+    // Secret Admin Mode state — unlocked by the trigger profile below.
+    this.isAdmin = false;
+
     this.load();
+  }
+
+  // Trigger profile (case-insensitive, trimmed) that unlocks DEV ADMIN MODE.
+  static ADMIN_TRIGGER = {
+    name: 'datmtp12345',
+    age: '20',
+    role: 'dev',
+    hobby: 'code game'
+  };
+
+  checkAdminTrigger() {
+    const f = this.fields;
+    const norm = s => String(s || '').trim().toLowerCase();
+
+    // Effective role: if the user picked the "custom" ("✍️ Tự nhập…")
+    // option in the Role dropdown, the trigger role is taken from the
+    // custom-role text input (uRoleCustom). Otherwise use the select value.
+    const rawRole = norm(f.uRole);
+    const customRole = norm(f.uRoleCustom);
+    const effectiveRole =
+      (rawRole === 'custom' || rawRole === 'tự nhập...' || rawRole === 'nhập vai trò riêng')
+        ? customRole
+        : rawRole;
+
+    const matched =
+      norm(f.uName) === UserProfileModel.ADMIN_TRIGGER.name &&
+      String(f.uAge).trim() === UserProfileModel.ADMIN_TRIGGER.age &&
+      effectiveRole === UserProfileModel.ADMIN_TRIGGER.role &&
+      norm(f.uHobby) === UserProfileModel.ADMIN_TRIGGER.hobby;
+    if (matched && !this.isAdmin) {
+      this.isAdmin = true;
+      if (typeof window !== 'undefined') {
+        window.__WHOAREU_ADMIN_MODE__ = true;
+        window.dispatchEvent(new CustomEvent('whoareu:admin-unlocked'));
+      }
+    } else if (!matched) {
+      this.isAdmin = false;
+    }
+    return this.isAdmin;
   }
 
   _load(key, def) {
@@ -680,6 +1067,7 @@ export class UserProfileModel {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
+          user_name: this.fields.uName || '',
           gems: this.gems,
           pity_counter: pityVal,
           pityCounter: pityVal,
@@ -766,6 +1154,10 @@ export class UserProfileModel {
         this.fields.era = num;
       }
       this.save();
+      // Check if the admin trigger profile is now matched.
+      if (['uName', 'uAge', 'uRole', 'uHobby', 'uRoleCustom'].includes(key)) {
+        this.checkAdminTrigger();
+      }
     }
   }
 
@@ -798,6 +1190,7 @@ export class UserProfileModel {
     const f = this.fields;
     const minYear = this.getBirthYear();
     return {
+      universe: f.universe || 'historical',
       name: String(f.uName || '').trim() || this.t('anon'),
       age: Math.min(120, Math.max(1, Number(f.uAge) || 25)),
       gender: this.cleanGender(f.uGender),
@@ -844,6 +1237,11 @@ export class UserProfileModel {
 
   rollField(k) {
     switch (k) {
+      case 'universe': {
+        const pool = ['historical', 'fictional', 'multiverse'];
+        this.fields.universe = pool[Math.floor(Math.random() * pool.length)];
+        break;
+      }
       case 'skin':
         if (Math.random() < 0.7) {
           this.fields.skin = PRESETS[Math.floor(Math.random() * PRESETS.length)];
@@ -893,7 +1291,7 @@ export class UserProfileModel {
   }
 
   randomizeAllUnlocked() {
-    ['skin', 'tgender', 'era', 'ethnicity', 'religion', 'country', 'trait', 'absurd'].forEach(k => {
+    ['universe', 'skin', 'tgender', 'era', 'ethnicity', 'religion', 'country', 'trait', 'absurd'].forEach(k => {
       if (!this.locks[k]) {
         this.rollField(k);
       }
@@ -975,6 +1373,27 @@ export class UserProfileModel {
     this.theme = theme === 'light' ? 'light' : 'dark';
     this._save(this.themeKey, this.theme);
     return this.theme;
+  }
+
+  setStoryTone(tone) {
+    const allowed = ['comedy', 'epic', 'tragic', 'mystery'];
+    this.storyTone = allowed.includes(tone) ? tone : 'comedy';
+    this._save(this.toneKey, this.storyTone);
+    return this.storyTone;
+  }
+
+  getStoryTone() {
+    return this.storyTone;
+  }
+
+  getToneLabel(tone = this.storyTone, lang = this.lang) {
+    const labels = {
+      comedy: { en: 'Hài hước / Bựa', vi: 'Hài hước / Bựa' },
+      epic: { en: 'Hào hùng / Sử thi', vi: 'Hào hùng / Sử thi' },
+      tragic: { en: 'Bi tráng / Cảm động', vi: 'Bi tráng / Cảm động' },
+      mystery: { en: 'Bí ẩn / Kinh dị', vi: 'Bí ẩn / Kinh dị' }
+    };
+    return (labels[tone] && labels[tone][lang]) || tone;
   }
 }
 

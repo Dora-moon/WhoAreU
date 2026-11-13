@@ -154,6 +154,30 @@ input[type="range"]::-moz-range-thumb {
   gap: 6px;
 }
 
+/* Country Search Input */
+.country-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--border-radius-sm);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.country-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.country-search-input::placeholder {
+  color: var(--ink-muted);
+}
+
 /* Mini Action Buttons (Dice & Lock) */
 .mini {
   flex: none;
@@ -488,7 +512,10 @@ input[type="range"]::-moz-range-thumb {
 .wc {
   flex: none;
   width: var(--cw);
-  height: calc(var(--cw) * 1.25);
+  height: var(--cw-h);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   border-radius: var(--border-radius-md);
   overflow: hidden;
   position: relative;
@@ -498,13 +525,20 @@ input[type="range"]::-moz-range-thumb {
   border-bottom: 6px solid var(--rc);
   box-shadow: var(--shadow-sm);
   text-align: left;
-  transition: transform 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .wc .im {
-  height: calc(100% - 46px);
+  width: 100%;
+  height: var(--cw-img-h);
+  flex-shrink: 0;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
   position: relative;
   background-color: var(--panel2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .wc .ini {
@@ -526,6 +560,7 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1.15;
   padding: 4px 6px 0;
   height: 26px;
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -535,15 +570,17 @@ input[type="range"]::-moz-range-thumb {
   font-family: var(--font-head);
   font-size: 0.72rem;
   color: var(--rc);
-  padding: 0 6px;
+  padding: 0 6px 4px;
   font-weight: 800;
+  flex-shrink: 0;
+  height: 20px;
 }
 
 .wc.win {
-  transform: scale(1.08);
   border-color: var(--c-yellow);
+  box-shadow: 0 0 0 3px var(--c-yellow), var(--shadow-lg);
+  filter: brightness(1.08);
   z-index: 2;
-  box-shadow: var(--shadow-lg);
 }
 
 /* ==========================================================================
@@ -617,7 +654,7 @@ input[type="range"]::-moz-range-thumb {
 .rimg {
   width: 100%;
   max-width: 220px;
-  aspect-ratio: 4/5;
+  aspect-ratio: 3 / 4;
   border-radius: var(--border-radius-md);
   border: 3px solid var(--line);
   position: relative;
@@ -630,6 +667,17 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: var(--shadow-sm);
   text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.3);
   margin: 0 auto;
+}
+
+.rimg img,
+.tile .im img,
+.wc .im img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  border-radius: inherit;
+  display: block;
 }
 
 .rinfo {
@@ -1725,7 +1773,7 @@ dialog::backdrop {
 }
 
 .tile .im {
-  aspect-ratio: 1;
+  aspect-ratio: 3 / 4;
   display: grid;
   place-items: center;
   font-family: var(--font-head);
@@ -1789,5 +1837,352 @@ dialog::backdrop {
   }
   .bar {
     grid-template-columns: 100px 1fr 34px;
+  }
+}
+
+/* ==========================================================================
+   Modal Close Buttons ("X") Enforced Layering & Pointer Events
+   ========================================================================== */
+.close-btn,
+.modal-close,
+[data-close-modal],
+[data-close] {
+  position: relative !important;
+  z-index: 99 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* ==========================================================================
+   Vietnamese Typography & Diacritic Rendering
+   ========================================================================== */
+.newspaper-title {
+  font-family: var(--font-newspaper), 'Playfair Display', 'Merriweather', Georgia, serif !important;
+}
+
+.dossier-header,
+.dossier-head,
+.card-title,
+.rcard h2,
+#rName,
+.rinfo h2,
+.cartoon-dossier-badge h2,
+.inv-card-name,
+.shead h2,
+.dossier-pill,
+.dossier-subhead,
+.dossier-row-label,
+.dossier-row-val,
+.dossier-value {
+  font-family: var(--font-vietnam), 'Be Vietnam Pro', 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* ==========================================================================
+   Concise 1-Paragraph Bio Header (full-width, no redundant mini-portrait)
+   ========================================================================== */
+.dossier-bio-header {
+  padding: 12px 14px;
+  background: var(--panel);
+  border-bottom: 2px dashed var(--line);
+}
+
+.dossier-bio-text {
+  width: 100%;
+  min-width: 0;
+}
+
+.dossier-bio-text p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink);
+  font-family: var(--font-body);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-bio-text.expanded p {
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+/* Collapsible "Xem thêm ▾" / "Thu gọn ▴" toggle button */
+.dossier-bio-toggle {
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--font-head);
+  color: var(--c-blue);
+  background: transparent;
+  border: 1px solid var(--c-blue);
+  border-radius: var(--border-radius-pill);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dossier-bio-toggle:hover {
+  background: var(--c-blue);
+  color: var(--panel);
+}
+
+/* Admin Pool Drawer Styles */
+.admin-pool-drawer {
+  max-width: 820px;
+  width: 90vw;
+  max-height: 85vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+.admin-pool-drawer .dhead {
+  padding: 14px 18px;
+  border-bottom: 2px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-pool-body {
+  padding: 16px 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.admin-pool-stats {
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.admin-pool-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* ==========================================================================
+   Story Tone Selector (Profile Dialog)
+   ========================================================================== */
+dialog label[for="storyTone"] {
+  margin-top: 14px;
+}
+
+#storyTone {
+  margin-top: 6px;
+}
+
+/* ==========================================================================
+   Concise 1-Paragraph Story Intro (single block, 3-4 sentences max)
+   ========================================================================== */
+.story-intro {
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(245, 158, 11, 0.08));
+  border: 2px solid var(--line);
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 4px 0 var(--line), var(--shadow-sm);
+  position: relative;
+}
+
+.story-intro p {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.65;
+  color: var(--ink-contrast);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Framed corner avatar beside the opening intro (72px, cover, center 20%) */
+.intro-corner-avatar {
+  position: absolute;
+  top: -36px;
+  right: 14px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid var(--c-yellow, #ffd700);
+  background: var(--panel);
+  box-shadow: 0 4px 0 var(--line), var(--shadow);
+  overflow: hidden;
+  z-index: 2;
+}
+
+.intro-corner-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+/* Corner avatar beside each Butterfly Effect dialogue choice (64px) */
+.choice-corner-avatar {
+  position: absolute;
+  top: -32px;
+  right: 12px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid var(--c-yellow, #ffd700);
+  background: var(--panel);
+  box-shadow: 0 4px 0 var(--line), var(--shadow);
+  overflow: hidden;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.choice-corner-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+/* ==========================================================================
+   Mini-Game Arena (Canvas + HUD, revealed by StoryController)
+   ========================================================================== */
+.minigame-arena {
+  margin: 18px 0;
+  padding: 14px 16px;
+  background: var(--panel2);
+  border: 3px solid var(--line);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 6px 0 var(--line), var(--shadow-md);
+  text-align: center;
+}
+
+/* Mission Context Banner - shows character portrait, mission title & objective */
+.minigame-mission-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(235,75,75,0.08));
+  border: 1px solid var(--gold);
+  border-radius: var(--border-radius-md);
+  text-align: left;
+}
+
+.mission-avatar {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 0 0 2px var(--panel2), 0 0 12px rgba(255,215,0,0.3);
+}
+
+.mission-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mission-info h3 {
+  margin: 0 0 4px;
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--ink-contrast);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.minigame-mission-banner .minigame-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.minigame-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.minigame-head h3 {
+  margin: 0;
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink-contrast);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.minigame-hud {
+  display: flex;
+  justify-content: space-around;
+  gap: 12px;
+  margin: 8px 0;
+  font-family: var(--font-head);
+  font-weight: 700;
+  color: var(--ink-contrast);
+  font-size: 0.9rem;
+}
+
+.minigame-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.minigame-controls .btn {
+  min-width: 120px;
+}
+
+#minigameCanvas {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: #0d0d1a;
+  border: 2px solid var(--line);
+  border-radius: var(--border-radius-md);
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.minigame-hint {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  #minigameCanvas {
+    max-width: 100%;
+  }
+  .minigame-controls .btn {
+    min-width: 90px;
+    font-size: 0.85rem;
+    padding: 8px 14px;
   }
 }

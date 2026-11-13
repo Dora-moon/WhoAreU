@@ -3,12 +3,17 @@
    Warm pastels, bold ink borders, crisp drop-shadows, friendly typography.
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Fredoka:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&family=Quicksand:wght@500;600;700;800&display=swap&subset=vietnamese');
 
 :root {
-  --font-head: 'Fredoka', 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-head: 'Fredoka', 'Be Vietnam Pro', 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Be Vietnam Pro', 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Playfair Display', 'Merriweather', Georgia, serif;
+  --font-newspaper: 'Playfair Display', 'Merriweather', Georgia, serif;
+  --font-vietnam: 'Be Vietnam Pro', 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
   --cw: 136px;
+  --cw-h: 220px;
+  --cw-img-h: 145px;
   --border-radius-sm: 8px;
   --border-radius-md: 14px;
   --border-radius-lg: 20px;

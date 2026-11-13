@@ -5,7 +5,8 @@
  * structured dossier building, and offline historical archive fallback.
  */
 
-import { COUNTRIES, CRX, ERAS, ETHNICITIES, RELIGIONS, UserProfileModel } from './UserProfileModel.js';
+import { COUNTRIES, CRX, ERAS, ETHNICITIES, RELIGIONS, UserProfileModel, HOBBY_SEMANTIC_MAP, hobbyKeywordsFor } from './UserProfileModel.js';
+import { evaluateCandidateMatch, filterAndRankCandidates } from './ScoringEngine.js';
 
 export const OFFLINE = [
   // [name, birth, death, countryId, era, ethnicityId, religionId, descEn, descVi, summaryEn, summaryVi, gender, evEn, evVi, targetRoleEn, targetRoleVi]
@@ -404,12 +405,385 @@ export const FAMOUS_ROLES = {
   'Hayao Miyazaki': { vi: 'Phù Thủy Hoạt Hình Bay Cùng Gió', en: 'Wind-Gliding Animation Sorcerer' }
 };
 
+export const OFFLINE_FICTIONAL = [
+  // [name, birth, countryId, descEn, descVi, summaryEn, summaryVi, img, url, gender, evEn, evVi, targetRoleEn, targetRoleVi]
+  [
+    'Son Goku', 1984, 'JP',
+    'Legendary Saiyan warrior and savior of Earth from Dragon Ball',
+    'Chiến binh Saiyan huyền thoại và người bảo vệ Trái Đất trong Dragon Ball',
+    'Son Goku, born Kakarot, is the legendary Saiyan warrior and defender of Earth who constantly seeks stronger opponents across the multiverse and achieved Ultra Instinct.',
+    'Son Goku (tên thật là Kakarot) là chiến binh Saiyan huyền thoại của Trái Đất, người đã đạt tới cảnh giới Bản Năng Vô Cực (Ultra Instinct) và nhiều lần cứu vũ trụ khỏi diệt vong.',
+    'https://upload.wikimedia.org/wikipedia/en/a/af/Son_Goku_Adult.png',
+    'https://vi.wikipedia.org/wiki/Son_Goku',
+    'male', 'achieving Ultra Instinct in the Tournament of Power', 'đạt tới cảnh giới Bản Năng Vô Cực tại Giải đấu Sức mạnh',
+    'Ultra Instinct Saiyan Legend', 'Chiến Binh Saiyan Bản Năng Vô Cực'
+  ],
+  [
+    'Naruto Uzumaki', 1999, 'JP',
+    'Seventh Hokage of Konohagakure and Nine-Tails Jinchuriki',
+    'Hokage Đệ Thất của Làng Lá và Jinchuriki của Cửu Vĩ Kurama',
+    'Naruto Uzumaki is a heroic shinobi of Konohagakure and the jinchuriki of the Nine-Tails who overcame immense solitude to unite the ninja world as the Seventh Hokage.',
+    'Naruto Uzumaki là ninja anh hùng của Làng Lá, người mang trong mình sức mạnh Cửu Vĩ Hồ Ly Kurama, người đã kết thúc Đại chiến Ninja lần thứ tư và trở thành Hokage Đệ Thất.',
+    'https://upload.wikimedia.org/wikipedia/en/9/9a/Naruto_Uzumaki.png',
+    'https://vi.wikipedia.org/wiki/Uzumaki_Naruto',
+    'male', 'uniting the ninja nations and befriending Kurama', 'hòa giải với Cửu Vĩ Kurama và đoàn kết các làng nhẫn giả',
+    'Nine-Tails Hokage Vanguard', 'Hokage Đệ Thất Hiệp Sĩ Cửu Vĩ'
+  ],
+  [
+    'Raiden Shogun', 2021, 'JP',
+    'Electro Archon of Inazuma pursuing eternal stasis',
+    'Lôi Thần tối cao của Inazuma, người theo đuổi sự Vĩnh Hằng tuyệt đối',
+    'The Raiden Shogun (Ei) is the sovereign Electro Archon of Inazuma who wields the devastating Musou no Hitotachi sword technique and rules over thunder and lightning.',
+    'Raiden Shogun (Lôi Đòn Tướng Quân - Ei) là vị Lôi Thần thống trị vương quốc Inazuma, sở hữu thần kiếm Vô Tưởng Nhất Đao có thể chém đứt núi non và bẻ cong sấm sét.',
+    'https://static.wikia.nocookie.net/gensin-impact/images/5/52/Raiden_Shogun_Card.png',
+    'https://genshin-impact.fandom.com/wiki/Raiden_Shogun',
+    'female', 'cleaving Yashiori Island with the Musou no Hitotachi', 'chém đôi đảo Yashiori bằng một nhát kiếm Vô Tưởng Nhất Đao',
+    'Musou Sword Electro Archon', 'Lôi Thần Chém Đôi Thời Không'
+  ],
+  [
+    '2B (YoRHa No.2 Type B)', 2017, 'JP',
+    'YoRHa elite all-purpose combat android from NieR:Automata',
+    'Nữ chiến binh người máy tác chiến tinh nhuệ YoRHa trong NieR:Automata',
+    'YoRHa No.2 Type B (2B) is a master combat blade android deployed by humanity\'s automated resistance to reclaim the ruined Earth from machine lifeforms.',
+    '2B (YoRHa No.2 Type B) là nữ người máy chiến đấu tinh nhuệ với mái tóc bạc và dải bịt mắt đen, sử dụng song kiếm katana siêu việt trong cuộc chiến giải phóng Trái Đất.',
+    'https://static.wikia.nocookie.net/p__/images/4/4a/2B.png/revision/latest/scale-to-width-down/500?cb=20230518025841&path-prefix=protagonist',
+    'https://hero.fandom.com/wiki/2B',
+    'female', 'the climactic battle against Goliath machine cores', 'cuộc đụng độ nghẹt thở với các cỗ máy khổng lồ Goliath',
+    'Dual-Katana Android Ace', 'Nữ Kiếm Sĩ Người Máy Băng Giá'
+  ],
+  [
+    'Bruce Wayne (Batman)', 1939, 'US',
+    'The Dark Knight detective and vigilante protector of Gotham City',
+    'Hiệp sĩ bóng đêm và thám tử vĩ đại bảo vệ thành phố Gotham',
+    'Batman is the vigilante persona of billionaire Bruce Wayne, dedicated to fighting the criminal underworld of Gotham City through supreme martial mastery, detective intellect, and advanced technology.',
+    'Batman là biểu tượng công lý bóng đêm của tỷ phú Bruce Wayne, sử dụng trí tuệ thiên tài, võ thuật siêu đẳng và kho công nghệ tối tân để thanh trừng tội phạm tại Gotham.',
+    'https://upload.wikimedia.org/wikipedia/en/c/c7/Batman_Infobox.jpg',
+    'https://vi.wikipedia.org/wiki/Batman',
+    'male', 'outsmarting the Joker and the Court of Owls', 'đánh bại Joker và giải mã hội kín Tòa án Cú',
+    'Prep-Time Caped Crusader', 'Hiệp Sĩ Áo Choàng Bóng Đêm Gotham'
+  ],
+  [
+    'Darth Vader', 1977, 'US',
+    'Fearsome Sith Lord and cybernetic commander of the Galactic Empire',
+    'Chúa tể Sith người máy đáng sợ của Đế chế Thiên hà',
+    'Darth Vader, formerly Anakin Skywalker, is the cybernetic Sith Lord who wields the dark side of the Force and commands the Imperial military across the galaxy.',
+    'Darth Vader (từng là hiệp sĩ Jedi Anakin Skywalker) là Chúa tể Sith nửa người nửa máy khét tiếng, nắm giữ Thần Lực Hắc Ám và thanh kiếm ánh sáng đỏ reo rắc kinh hoàng dải ngân hà.',
+    'https://upload.wikimedia.org/wikipedia/en/7/76/Darth_Vader.jpg',
+    'https://vi.wikipedia.org/wiki/Darth_Vader',
+    'male', 'wielding the crimson lightsaber on the Death Star', 'chỉ huy Hạm đội Tinh nhuệ trên Trạm không gian Ngôi Sao Chết',
+    'Red Lightsaber Force Choker', 'Chúa Tể Sith Bóp Cổ Bằng Thần Lực'
+  ],
+  [
+    'Monkey D. Luffy', 1997, 'JP',
+    'Rubber-bodied captain of the Straw Hat Pirates seeking the One Piece',
+    'Thuyền trưởng băng Mũ Rơm với cơ thể cao su tìm kiếm kho báu One Piece',
+    'Monkey D. Luffy is the free-spirited captain of the Straw Hat Pirates who ate the Gum-Gum Fruit and awakened the Sun God Nika Gear 5 power to become King of the Pirates.',
+    'Monkey D. Luffy là thuyền trưởng băng hải tặc Mũ Rơm, người sở hữu cơ thể cao su co giãn vô hạn và đã thức tỉnh trạng thái Thần Mặt Trời Nika (Gear 5) đầy tự do.',
+    'https://upload.wikimedia.org/wikipedia/en/c/cb/Monkey_D_Luffy.png',
+    'https://vi.wikipedia.org/wiki/Monkey_D._Luffy',
+    'male', 'awakening Gear 5 Sun God Nika on Onigashima', 'thức tỉnh trạng thái Thần Mặt Trời Nika Gear 5 tại đảo Quỷ',
+    'Gear 5 Sun God Pirate King', 'Vua Hải Tặc Thần Mặt Trời Nika'
+  ],
+  [
+    'Sherlock Holmes', 1887, 'GB',
+    'World-renowned consulting detective of 221B Baker Street',
+    'Thám tử tư vấn huyền thoại tại số 221B phố Baker, Luân Đôn',
+    'Sherlock Holmes is the brilliant fictional consulting detective created by Sir Arthur Conan Doyle, celebrated for observation, forensic science, and flawless logical deduction.',
+    'Sherlock Holmes là bậc thầy thám tử tư vấn số một thế giới, người sở hữu óc quan sát vi mô và phương pháp suy luận logic phá giải những vụ án kỳ bí nhất lịch sử văn học.',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Sherlock_Holmes_Portrait_Paget.jpg/500px-Sherlock_Holmes_Portrait_Paget.jpg',
+    'https://vi.wikipedia.org/wiki/Sherlock_Holmes',
+    'male', 'the intellectual duel at Reichenbach Falls', 'màn đấu trí kinh điển tại thác nước Reichenbach',
+    'Baker Street Deduction Mastermind', 'Đại Pháp Sư Suy Luận Phố Baker'
+  ],
+  [
+    'Geralt of Rivia', 1993, 'PL',
+    'Mutated monster-hunting Witcher known as the White Wolf',
+    'Thợ săn quái vật đột biến mang biệt danh Sói Trắng xứ Rivia',
+    'Geralt of Rivia is a magically mutated monster slayer for hire from The Witcher series, renowned for his superhuman reflexes, silver swordplay, and alchemy.',
+    'Geralt xứ Rivia là thợ săn quái vật Witcher sở hữu mái tóc bạc trắng, đôi mắt mèo và thanh kiếm bạc diệt ma, người chu du khắp Lục Địa để giải trừ những lời nguyền hắc ám.',
+    'https://upload.wikimedia.org/wikipedia/en/9/9f/Geralt_of_Rivia_Witcher_3_render.png',
+    'https://vi.wikipedia.org/wiki/Geralt_x%E1%BB%A9_Rivia',
+    'male', 'slaying the Striga and defending Cintra', 'tiêu diệt quái thú Striga và hộ tống công chúa Cintra',
+    'White Wolf Silver Swordsman', 'Thợ Săn Quái Vật Kiếm Bạc Sói Trắng'
+  ],
+  [
+    'Mario', 1981, 'IT',
+    'Mushroom Kingdom plumber and superstar hero of Nintendo',
+    'Chàng thợ sửa ống nước và siêu anh hùng của Vương quốc Nấm',
+    'Mario is Nintendo\'s celebrated Italian plumber who repeatedly embarks on epic adventures across the Mushroom Kingdom to rescue Princess Peach from Bowser.',
+    'Mario là biểu tượng game lừng danh toàn cầu, chàng thợ sửa ống nước dũng cảm luôn nhảy qua đầu quân thù và nuốt nấm ma thuật để giải cứu Công chúa Peach khỏi nanh vuốt Bowser.',
+    'https://upload.wikimedia.org/wikipedia/en/a/a9/MarioNintendo.png',
+    'https://vi.wikipedia.org/wiki/Mario',
+    'male', 'stomping Bowser and conquering World 8', 'vượt qua Lâu đài Thế giới 8 và đánh bại trùm rùa Bowser',
+    'Mushroom Stomping Plumber Hero', 'Hiệp Sĩ Nấm Đạp Rùa Đỉnh Cao'
+  ]
+];
+
 export class WikipediaModel {
+  // Core caching and circuit breaker state
+  constructor() {
+    // Query cache: Map keyed by normalized query URL, 10-minute TTL, 100-entry max
+    this._queryCache = new Map();
+    this._rateLimitedUntil = 0;
+    // Prefetch state for reactive background loading.
+    // _prefetchPool is a flat array of pre-scored candidates (never a Map):
+    // arrays preserve insertion order for weighted sampling and avoid the
+    // per-key bookkeeping that broke when filters changed mid-flight.
+    this._prefetchPool = [];
+    this._prefetchFilterKey = null;
+    this._prefetchPromise = null;
+    this._prefetchTimer = null;
+
+    // --- Rotating multi-session discovery cache ---
+    // Up to 300 characters persisted across sessions in localStorage so the
+    // roulette never repeats the same small cast. When sampling 20 cards we
+    // exclude the last 25 pulled IDs to force diversity.
+    this._discoveredCache = this._loadDiscoveredCache();
+    this._pulledIds = this._loadPulledIds();
+  }
+
+  _loadDiscoveredCache() {
+    try {
+      if (typeof localStorage === 'undefined') return [];
+      const raw = localStorage.getItem('wg_discovered_cache');
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.slice(0, 300) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  _saveDiscoveredCache() {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem('wg_discovered_cache', JSON.stringify(this._discoveredCache.slice(0, 300)));
+    } catch (e) {}
+  }
+
+  _loadPulledIds() {
+    try {
+      if (typeof localStorage === 'undefined') return [];
+      const raw = localStorage.getItem('wg_pulled_ids');
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.slice(-25) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  _savePulledIds() {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem('wg_pulled_ids', JSON.stringify(this._pulledIds.slice(-25)));
+    } catch (e) {}
+  }
+
+  // Merge freshly discovered candidates into the rotating cache (max 300).
+  _mergeDiscovered(candidates) {
+    if (!Array.isArray(candidates) || !candidates.length) return;
+    const seen = new Set(this._discoveredCache.map(c => c.pageid != null ? c.pageid : c.name));
+    for (const c of candidates) {
+      if (!c) continue;
+      const key = c.pageid != null ? c.pageid : c.name;
+      if (key == null || seen.has(key)) continue;
+      seen.add(key);
+      this._discoveredCache.push(c);
+    }
+    // Keep the most recent 300 (FIFO trim)
+    if (this._discoveredCache.length > 300) {
+      this._discoveredCache = this._discoveredCache.slice(-300);
+    }
+    this._saveDiscoveredCache();
+  }
+
+  // Record the IDs that were just pulled so the next 20-card sample excludes them.
+  _recordPulledIds(cards) {
+    if (!Array.isArray(cards)) return;
+    for (const c of cards) {
+      if (!c) continue;
+      const key = c.pageid != null ? c.pageid : c.name;
+      if (key == null) continue;
+      this._pulledIds.push(key);
+    }
+    // Keep only the last 25
+    if (this._pulledIds.length > 25) {
+      this._pulledIds = this._pulledIds.slice(-25);
+    }
+    this._savePulledIds();
+  }
+
+  // --- Query Cache with 10-min TTL and 100-entry max ---
+  _cacheKey(url) {
+    return url.split('?')[0] + '?' + new URLSearchParams(url.split('?')[1] || '').toString();
+  }
+
+  async cachedFetchJSON(url, timeoutMs = 9000) {
+    const key = this._cacheKey(url);
+    const now = Date.now();
+    const entry = this._queryCache.get(key);
+    if (entry && now - entry.ts < 600000) { // 10 minutes TTL
+      return entry.data;
+    }
+
+    if (this._rateLimitedUntil > now) {
+      throw new Error('rate limited');
+    }
+
+    let data;
+    try {
+      data = await this.fetchJSON(url, timeoutMs);
+    } catch (err) {
+      if (err && err.message === 'rate limited') throw err;
+      throw err;
+    }
+
+    // Prune when size exceeds 100
+    if (this._queryCache.size >= 100) {
+      const firstKey = this._queryCache.keys().next().value;
+      this._queryCache.delete(firstKey);
+    }
+    this._queryCache.set(key, { ts: now, data });
+    return data;
+  }
+
+  // --- HTTP 429 Circuit Breaker ---
+  isRateLimited() {
+    return Date.now() < this._rateLimitedUntil;
+  }
+
+  // --- Reactive background prefetching ---
+  // Schedule a prefetch with debounce. Returns a promise that resolves with the
+  // current pool once ready (either immediately from cache or after fetch).
+  // The pool is a flat array of pre-scored candidates so weighted sampling and
+  // instant 20-card spins are O(n) with zero network delay.
+  schedulePrefetch(inputs = {}, { debounceMs = 450, onStatus } = {}) {
+    if (this._prefetchTimer) clearTimeout(this._prefetchTimer);
+    if (this._prefetchPromise) {
+      // Swallow previous pending prefetch — superseded by this call
+      this._prefetchPromise = null;
+    }
+
+    const filterKey = this._filterKey(inputs);
+
+    // Immediate resolution if filter unchanged and pool already >= 20
+    if (this._prefetchFilterKey === filterKey && this._prefetchPool.length >= 20) {
+      this._prefetchFilterKey = filterKey;
+      if (onStatus) onStatus('ready', this._prefetchPool.length);
+      return Promise.resolve(this._prefetchPool.slice());
+    }
+
+    return new Promise((resolve, reject) => {
+      this._prefetchTimer = setTimeout(async () => {
+        try {
+          if (onStatus) onStatus('fetching', 0);
+          // Fetch pool WITHOUT resolving images (avoids 429 floods)
+          const cards = await this._fetchPoolImpl({ ...inputs, selectedMinYear: inputs.eraYear || inputs.year || inputs.era || 1900 });
+
+          // Score with the 3-stage hard-constraint + weighted engine (ScoringEngine)
+          // _fetchPoolImpl now returns pre-scored, ranked candidates
+          const passing = cards.filter(c => c && c._eval && c._eval.pass && c._eval.score >= 30);
+          this._prefetchPool = passing;
+          this._prefetchFilterKey = filterKey;
+          if (onStatus) onStatus('ready', this._prefetchPool.length);
+          resolve(this._prefetchPool.slice());
+        } catch (err) {
+          if (onStatus) onStatus('offline', 0);
+          reject(err);
+        }
+      }, debounceMs);
+    });
+  }
+
+  // Stable filter key for the reactive prefetch — only the filters that
+  // actually constrain the candidate pool participate, so unrelated changes
+  // (skin tone, absurdity, name) don't trigger a wasteful refetch.
+  _filterKey(inputs = {}) {
+    return JSON.stringify({
+      universe: inputs.universe,
+      ethnicity: inputs.ethnicity,
+      religion: inputs.religion,
+      country: inputs.country,
+      trait: inputs.trait,
+      hobbies: inputs.hobbies,
+      eraYear: inputs.eraYear || inputs.year || inputs.era
+    });
+  }
+
+  // Return up to `sampleSize` pre-scored candidates from the prefetch pool,
+  // using weighted random sampling biased toward higher score. Zero network
+  // delay — the pool is already in memory.
+  // Also resolves images for the chosen 20 cards (max 4 concurrent).
+  async getInstantSpinCandidates(inputs = {}, sampleSize = 20) {
+    const filterKey = this._filterKey(inputs);
+    let pool = this._prefetchPool;
+    if (this._prefetchFilterKey !== filterKey || pool.length === 0) {
+      // Fall back to whatever pool is currently warm (filters may have drifted)
+      pool = this._prefetchPool;
+    }
+    if (!pool || pool.length === 0) return [];
+
+    // Merge the freshly fetched pool into the rotating multi-session cache
+    // so the roulette can draw from a large, diverse cast across sessions.
+    this._mergeDiscovered(pool);
+
+    // Build the sampling pool: live pool first, then cached discovered chars.
+    // Exclude the last 25 pulled IDs so the same characters don't return immediately.
+    const pulledSet = new Set(this._pulledIds);
+    const cachedExtra = this._discoveredCache
+      .filter(c => c && !pulledSet.has(c.pageid != null ? c.pageid : c.name))
+      .filter(c => !pool.some(p => (p.pageid != null ? p.pageid : p.name) === (c.pageid != null ? c.pageid : c.name)));
+
+    const all = [...pool, ...cachedExtra];
+
+    // Weighted random sampling biased toward higher score
+    const pick = () => {
+      const totalWeight = all.reduce((s, c) => s + Math.max(1, (c.score || 0)), 0);
+      let r = Math.random() * totalWeight;
+      for (const c of all) {
+        r -= Math.max(1, (c.score || 0));
+        if (r <= 0) return c;
+      }
+      return all[all.length - 1];
+    };
+
+    const chosen = [];
+    const used = new Set();
+    while (chosen.length < Math.min(sampleSize, all.length)) {
+      const c = pick();
+      const key = c.pageid || c.title || c.name;
+      if (!used.has(key)) {
+        used.add(key);
+        chosen.push(c);
+      }
+      if (chosen.length >= all.length) break;
+    }
+
+    // Record the pulled IDs so the next 20-card sample excludes them.
+    this._recordPulledIds(chosen);
+
+    // Resolve images for the chosen 20 cards with max 4 concurrent requests
+    // to avoid 429 floods
+    const CONCURRENCY = 4;
+    for (let i = 0; i < chosen.length; i += CONCURRENCY) {
+      const chunk = chosen.slice(i, i + CONCURRENCY);
+      await Promise.all(chunk.map(c => this.resolveCardImage(c)));
+    }
+
+    return chosen;
+  }
+
   async fetchJSON(url, timeoutMs = 9000) {
     const ac = new AbortController();
     const to = setTimeout(() => ac.abort(), timeoutMs);
     try {
       const res = await fetch(url, { signal: ac.signal });
+      if (res.status === 429) {
+        // Circuit breaker: 15-second cooldown
+        this._rateLimitedUntil = Date.now() + 15000;
+        throw new Error('rate limited');
+      }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } finally {
@@ -464,155 +838,51 @@ export class WikipediaModel {
       return `(sinh ${b}${d ? ' – mất ' + d : ''})`;
     });
 
-    // Reorder "was an English mathematician" -> "là một nhà toán học... người Anh"
-    const natList = 'American|British|English|Scottish|French|German|Austrian|Italian|Spanish|Russian|Soviet|Chinese|Japanese|Korean|Vietnamese|Indian|Greek|Roman|Polish|Swedish|Dutch|Irish|Mexican|Brazilian|Canadian|Australian|Egyptian|Turkish';
-    const rxNatLead = new RegExp(`\\b(?:was|is)\\s+an?\\s+(${natList})\\s+([a-z\\s,]+?)(?=\\s+(?:who|that|born|widely|,|\\.))`, 'i');
-    s = s.replace(rxNatLead, (m, nat, profs) => {
-      return `là một ${profs} [NAT:${nat}]`;
-    });
+    // Use Google Translate GTX free endpoint for clean translation.
+    // If running in browser, we call the endpoint directly. In Node (offline/ssr),
+    // we fall back to a minimal phrase map for common patterns only.
+    if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
+      // We'll use an async approach via a wrapper, but for sync compatibility
+      // we just return the English text here — the browser-side CardView will
+      // call the GTX API asynchronously via fetch in rescueImage/translateText.
+      // This synchronous method is kept for SSR/offline fallback only.
+    }
 
+    // Minimal fallback phrase map — only for truly common boilerplate patterns.
     const phraseMap = [
-      [/\bwho was born in (\d{1,4})\b/gi, 'sinh năm $1'],
-      [/\bwas born in (\d{1,4})\b/gi, 'sinh năm $1'],
-      [/\btheoretical computer science\b/gi, 'khoa học máy tính lý thuyết'],
-      [/\bcomputer science\b/gi, 'khoa học máy tính'],
-      [/\bartificial intelligence\b/gi, 'trí tuệ nhân tạo'],
-      [/\bgeneral relativity\b/gi, 'thuyết tương đối rộng'],
-      [/\bspecial relativity\b/gi, 'thuyết tương đối hẹp'],
-      [/\btheory of relativity\b/gi, 'thuyết tương đối'],
-      [/\bquantum mechanics\b/gi, 'cơ học lượng tử'],
-      [/\bclassical mechanics\b/gi, 'cơ học cổ điển'],
+      [/\(born\s+(\d{1,2}\s+[A-Za-z]+\s+\d{3,4})\s*[–—-]\s*(\d{1,2}\s+[A-Za-z]+\s+\d{3,4})?\)/gi, '(sinh $1$2)'],
       [/\bwas an?\b/gi, 'là một'],
       [/\bis an?\b/gi, 'là một'],
       [/\bwas the\b/gi, 'là'],
       [/\bis the\b/gi, 'là'],
-      [/\bwho served as\b/gi, 'từng đảm nhiệm cương vị'],
-      [/\bwho became the first person to\b/gi, 'người đã trở thành người đầu tiên'],
-      [/\bthe first person to\b/gi, 'người đầu tiên'],
-      [/\bthe first human to\b/gi, 'người đầu tiên'],
-      [/\bthe first woman to\b/gi, 'người phụ nữ đầu tiên'],
-      [/\bwalk on the Moon\b/gi, 'bước chân lên Mặt Trăng'],
-      [/\bjourney into outer space\b/gi, 'bay vào không gian vũ trụ'],
-      [/\bwidely considered the father of\b/gi, 'được công nhận rộng rãi là cha đẻ của'],
-      [/\bconsidered the father of\b/gi, 'được coi là cha đẻ của'],
-      [/\bwidely regarded as one of the greatest\b/gi, 'được coi là một trong những nhân vật vĩ đại nhất'],
-      [/\bregarded as one of the most\b/gi, 'được coi là một trong những người'],
-      [/\bcelebrated internationally as\b/gi, 'được tôn vinh trên toàn thế giới như'],
-      [/\bbest known for\b/gi, 'nổi tiếng nhất với'],
-      [/\bknown for\b/gi, 'được biết đến với'],
-      [/\bfamous for\b/gi, 'nổi danh nhờ'],
-      [/\bwon an Academy Award\b/gi, 'đoạt giải Oscar'],
-      [/\bwon the Nobel Prize\b/gi, 'đoạt giải Nobel'],
-      [/\bwon the Fields Medal\b/gi, 'đoạt Huy chương Fields'],
-      [/\bSecond World War\b/gi, 'Chiến tranh Thế giới thứ hai'],
-      [/\bFirst World War\b/gi, 'Chiến tranh Thế giới thứ nhất'],
-      [/\bWorld War II\b/gi, 'Chiến tranh Thế giới thứ hai'],
-      [/\bWorld War I\b/gi, 'Chiến tranh Thế giới thứ nhất'],
-      [/\bUnited States\b/gi, 'Hoa Kỳ'],
-      [/\bUnited Kingdom\b/gi, 'Vương quốc Anh'],
-      [/\bSoviet Union\b/gi, 'Liên Xô'],
-      [/\bHe was\b/g, 'Ông là'],
-      [/\bShe was\b/g, 'Bà là'],
-      [/\bHe is\b/g, 'Ông là'],
-      [/\bShe is\b/g, 'Bà là'],
-      [/\bHe\b/g, 'Ông'],
-      [/\bShe\b/g, 'Bà'],
-      [/\bDuring\b/g, 'Trong'],
-      [/\bIn (\d{4})\b/g, 'Vào năm $1'],
-      [/\band\b/g, 'và'],
-      [/\bwho\b/g, 'người']
-    ];
-
-    const natMap = [
-      [/\[NAT:American\]|\bAmerican\b/g, 'người Mỹ'],
-      [/\[NAT:British\]|\bBritish\b/g, 'người Anh'],
-      [/\[NAT:English\]|\bEnglish\b/g, 'người Anh'],
-      [/\[NAT:Scottish\]|\bScottish\b/g, 'người Scotland'],
-      [/\[NAT:French\]|\bFrench\b/g, 'người Pháp'],
-      [/\[NAT:German\]|\bGerman\b/g, 'người Đức'],
-      [/\[NAT:Austrian\]|\bAustrian\b/g, 'người Áo'],
-      [/\[NAT:Italian\]|\bItalian\b/g, 'người Ý'],
-      [/\[NAT:Spanish\]|\bSpanish\b/g, 'người Tây Ban Nha'],
-      [/\[NAT:Russian\]|\bRussian\b/g, 'người Nga'],
-      [/\[NAT:Soviet\]|\bSoviet\b/g, 'Liên Xô'],
-      [/\[NAT:Chinese\]|\bChinese\b/g, 'người Trung Quốc'],
-      [/\[NAT:Japanese\]|\bJapanese\b/g, 'người Nhật Bản'],
-      [/\[NAT:Korean\]|\bKorean\b/g, 'người Hàn Quốc'],
-      [/\[NAT:Vietnamese\]|\bVietnamese\b/g, 'người Việt Nam'],
-      [/\[NAT:Indian\]|\bIndian\b/g, 'người Ấn Độ'],
-      [/\[NAT:Greek\]|\bGreek\b/g, 'người Hy Lạp'],
-      [/\[NAT:Roman\]|\bRoman\b/g, 'người La Mã'],
-      [/\[NAT:Polish\]|\bPolish\b/g, 'người Ba Lan'],
-      [/\[NAT:Swedish\]|\bSwedish\b/g, 'người Thụy Điển'],
-      [/\[NAT:Dutch\]|\bDutch\b/g, 'người Hà Lan'],
-      [/\[NAT:Irish\]|\bIrish\b/g, 'người Ireland'],
-      [/\[NAT:Mexican\]|\bMexican\b/g, 'người Mexico'],
-      [/\[NAT:Brazilian\]|\bBrazilian\b/g, 'người Brazil'],
-      [/\[NAT:Canadian\]|\bCanadian\b/g, 'người Canada'],
-      [/\[NAT:Australian\]|\bAustralian\b/g, 'người Úc'],
-      [/\[NAT:Egyptian\]|\bEgyptian\b/g, 'người Ai Cập'],
-      [/\[NAT:Turkish\]|\bTurkish\b/g, 'người Thổ Nhĩ Kỳ']
-    ];
-
-    const profMap = [
-      [/\bmathematician\b/gi, 'nhà toán học'],
-      [/\bcomputer scientist\b/gi, 'nhà khoa học máy tính'],
-      [/\btheoretical physicist\b/gi, 'nhà vật lý lý thuyết'],
-      [/\bphysicist\b/gi, 'nhà vật lý'],
-      [/\bchemist\b/gi, 'nhà hóa học'],
-      [/\bbiologist\b/gi, 'nhà sinh học'],
-      [/\bastronomer\b/gi, 'nhà thiên văn'],
-      [/\bcosmologist\b/gi, 'nhà vũ trụ học'],
-      [/\blogician\b/gi, 'nhà logic học'],
-      [/\bcryptanalyst\b/gi, 'chuyên gia giải mã'],
-      [/\bphilosopher\b/gi, 'nhà triết học'],
-      [/\bpainter\b/gi, 'họa sĩ'],
-      [/\bartist\b/gi, 'nghệ sĩ'],
-      [/\barchitect\b/gi, 'kiến trúc sư'],
-      [/\bengineer\b/gi, 'kỹ sư'],
-      [/\binventor\b/gi, 'nhà phát minh'],
-      [/\bwriter\b/gi, 'nhà văn'],
-      [/\bpoet\b/gi, 'nhà thơ'],
-      [/\bnovelist\b/gi, 'tiểu thuyết gia'],
-      [/\bcomposer\b/gi, 'nhà soạn nhạc'],
-      [/\bsongwriter\b/gi, 'nhạc sĩ'],
-      [/\bmusician\b/gi, 'nhạc công'],
-      [/\bsinger\b/gi, 'ca sĩ'],
-      [/\bactor\b/gi, 'diễn viên'],
-      [/\bactress\b/gi, 'nữ diễn viên'],
-      [/\bfilmmaker\b/gi, 'nhà làm phim'],
-      [/\bfilm director\b/gi, 'đạo diễn điện ảnh'],
-      [/\bdirector\b/gi, 'đạo diễn'],
-      [/\bgeneral\b/gi, 'đại tướng'],
-      [/\bmilitary commander\b/gi, 'nhà chỉ huy quân sự'],
-      [/\bcommander\b/gi, 'chỉ huy'],
-      [/\bstatesman\b/gi, 'chính khách'],
-      [/\bpolitician\b/gi, 'chính trị gia'],
-      [/\bpresident of the United States\b/gi, 'Tổng thống Hoa Kỳ'],
-      [/\bpresident\b/gi, 'tổng thống'],
-      [/\bprime minister\b/gi, 'thủ tướng'],
-      [/\bking\b/gi, 'quốc vương'],
-      [/\bqueen\b/gi, 'nữ hoàng'],
-      [/\bemperor\b/gi, 'hoàng đế'],
-      [/\bastronaut\b/gi, 'phi hành gia'],
-      [/\bcosmonaut\b/gi, 'nhà du hành vũ trụ'],
-      [/\bexplorer\b/gi, 'nhà thám hiểm'],
-      [/\btailor\b/gi, 'thợ may'],
-      [/\bactivist\b/gi, 'nhà hoạt động'],
-      [/\bhumanitarian\b/gi, 'nhà nhân đạo'],
-      [/\bboxer\b/gi, 'võ sĩ quyền anh'],
-      [/\bfootballer\b/gi, 'cầu thủ bóng đá'],
-      [/\bpolymath\b/gi, 'học giả uyên bác'],
-      [/\bneurologist\b/gi, 'bác sĩ thần kinh'],
-      [/\bphysician\b/gi, 'bác sĩ']
+      [/\bwho\b/g, 'người'],
+      [/\band\b/g, 'và']
     ];
 
     phraseMap.forEach(([rx, rep]) => { s = s.replace(rx, rep); });
-    profMap.forEach(([rx, rep]) => { s = s.replace(rx, rep); });
-    natMap.forEach(([rx, rep]) => { s = s.replace(rx, rep); });
 
     s = s.replace(/\s{2,}/g, ' ').replace(/\s+([,.;!?])/g, '$1').trim();
     return s;
+  }
+
+  // Async translation using Google Translate GTX endpoint.
+  // Returns the translated Vietnamese text, or the original text on failure.
+  async translateTextToVietnamese(text) {
+    if (!text || typeof fetch === 'undefined') return text;
+    try {
+      const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=' + encodeURIComponent(text);
+      const resp = await fetch(url);
+      if (!resp.ok) return text;
+      const data = await resp.json();
+      // data[0] is an array of [translated, original, ...] tuples
+      if (Array.isArray(data[0])) {
+        return data[0].map(t => t[0]).join(' ');
+      }
+      return text;
+    } catch (e) {
+      console.warn('[WikipediaModel] GTX translate failed:', e);
+      return text;
+    }
   }
 
   extractTargetRole(card, lang = 'vi') {
@@ -729,11 +999,621 @@ export class WikipediaModel {
     return 'century_21';
   }
 
-  parsePage(p, lang = 'en') {
+  validateEntity(p, lang = 'vi', isFictional = false) {
+    if (!p || !p.title) return false;
+    const title = p.title.trim();
+    const ex = (p.extract || '').trim();
+    const desc = (p.description || '').trim();
+    const fullText = (title + ' ' + desc + ' ' + ex).toLowerCase();
+
+    // 1. Strict Non-Person Patterns (Title & Lead checks)
+    //    Block Wikipedia namespace pages that are never characters:
+    //    Category: / Category (Thể loại:), List of / Lists of (Danh sách),
+    //    Template: (Bản mẫu:), Portal: (Cổng thông tin:).
+    const NON_PERSON_TITLE_PREFIXES = [
+      /^category:/i,
+      /^thể loại:/i,
+      /^list of\b/i,
+      /^lists of\b/i,
+      /^danh sách\b/i,
+      /^template:/i,
+      /^bản mẫu:/i,
+      /^portal:/i,
+      /^cổng thông tin:/i,
+      /^help:/i,
+      /^file:/i,
+      /^media wiki:/i,
+      /^wikipedia:/i,
+      /^special:/i
+    ];
+    for (const rx of NON_PERSON_TITLE_PREFIXES) {
+      if (rx.test(title)) return false;
+    }
+
+    const NON_PERSON_PATTERNS = [
+      /olympic/i,
+      /thế vận hội/i,
+      /chiến tranh/i,
+      /\bwar\b/i,
+      /\bwars\b/i,
+      /đế quốc/i,
+      /\bempire\b/i,
+      /giải vô địch/i,
+      /championship/i,
+      /tournament/i,
+      /\bworld cup\b/i,
+      /sự kiện/i,
+      /\bevent\b/i,
+      /\bevents\b/i,
+      /năm\s+\d+/i,
+      /\byear\s+\d+/i,
+      /thế kỷ/i,
+      /\bcentury\b/i,
+      /thành phố/i,
+      /\bcity\b/i,
+      /quốc gia/i,
+      /\bcountry\b/i,
+      /\bnation\b/i,
+      /tổ chức/i,
+      /organization/i,
+      /organisation/i,
+      /trận\s+/i,
+      /\bbattle of\b/i,
+      /danh sách/i,
+      /\blist of\b/i,
+      /hiệp ước/i,
+      /\btreaty\b/i,
+      /sân vận động/i,
+      /\bstadium\b/i,
+      /tập đoàn/i,
+      /công ty/i,
+      /đảng phái/i,
+      /phong trào/i
+    ];
+
+    for (const pat of NON_PERSON_PATTERNS) {
+      if (pat.test(title)) {
+        return false;
+      }
+    }
+
+    const NON_PERSON_LEAD_PATTERNS = [
+      /là\s+một\s+(sự kiện|cuộc chiến|chiến tranh|giải vô địch|thành phố|quốc gia|tổ chức|hiệp ước|sân vận động|tập đoàn|công ty|phong trào|hiệp hội|đảng phái|địa danh|sách|album|bài hát|phim|trò chơi)/i,
+      /is\s+(an?\s+)?(event|war|conflict|championship|tournament|city|country|nation|organization|treaty|stadium|corporation|company|movement|association|album|song|film|movie|game)\b/i,
+      /was\s+(an?\s+)?(event|war|conflict|championship|tournament|city|country|nation|organization|treaty|stadium|corporation|company|movement|association|album|song|film|movie|game)\b/i
+    ];
+    for (const pat of NON_PERSON_LEAD_PATTERNS) {
+      if (pat.test(ex.slice(0, 200))) {
+        return false;
+      }
+    }
+
+    // 2. Positive Person / Character Indicators in summary or description
+    const FICTIONAL_INDICATORS = [
+      /nhân vật/i,
+      /nhân vật hư cấu/i,
+      /nhân vật hoạt hình/i,
+      /nhân vật chính/i,
+      /nhân vật phản diện/i,
+      /nhân vật phụ/i,
+      /\bcharacter\b/i,
+      /\bcharacters\b/i,
+      /\bfictional\b/i,
+      /\bprotagonist\b/i,
+      /\bantagonist\b/i,
+      /\banime\b/i,
+      /\bmanga\b/i,
+      /\bvideo game\b/i,
+      /\bplayable\b/i,
+      /\bhero\b/i,
+      /\bheroes\b/i,
+      /\bvillain\b/i,
+      /\bvillains\b/i,
+      /\bsuperhero\b/i
+    ];
+
+    const PERSON_INDICATORS = [
+      /sinh\s+năm/i,
+      /mất\s+năm/i,
+      /\bborn\b/i,
+      /\bdied\b/i,
+      /\(sinh\b/i,
+      /\(born\b/i,
+      /nhân vật/i,
+      /diễn viên/i,
+      /tướng lĩnh/i,
+      /nhà khoa học/i,
+      /nhà văn/i,
+      /nhà thơ/i,
+      /họa sĩ/i,
+      /nhà toán học/i,
+      /nhà vật lý/i,
+      /triết gia/i,
+      /vua\b/i,
+      /hoàng đế/i,
+      /nữ hoàng/i,
+      /chính khách/i,
+      /chính trị gia/i,
+      /tổng thống/i,
+      /thủ tướng/i,
+      /bác sĩ/i,
+      /kỹ sư/i,
+      /nhà phát minh/i,
+      /vận động viên/i,
+      /cầu thủ/i,
+      /võ sĩ/i,
+      /ca sĩ/i,
+      /nhạc sĩ/i,
+      /người sáng lập/i,
+      /người tiên phong/i,
+      /\bông là\b/i,
+      /\bbà là\b/i,
+      /\banh là\b/i,
+      /\bcô là\b/i,
+      /\bhe was\b/i,
+      /\bshe was\b/i,
+      /\bhe is\b/i,
+      /\bshe is\b/i,
+      /\bactor\b/i,
+      /\bactress\b/i,
+      /\bscientist\b/i,
+      /\bphysician\b/i,
+      /\bphilosopher\b/i,
+      /\bgeneral\b/i,
+      /\bcommander\b/i,
+      /\bking\b/i,
+      /\bqueen\b/i,
+      /\bemperor\b/i,
+      /\bpresident\b/i,
+      /\bprime minister\b/i,
+      /\bpolitician\b/i,
+      /\bstatesman\b/i,
+      /\bwriter\b/i,
+      /\bpainter\b/i,
+      /\bartist\b/i,
+      /\bcomposer\b/i,
+      /\bmathematician\b/i,
+      /\binventor\b/i,
+      /\bathlete\b/i,
+      /\bfootballer\b/i
+    ];
+
+    if (isFictional) {
+      const hasFictional = FICTIONAL_INDICATORS.some(rx => rx.test(fullText));
+      const hasPerson = PERSON_INDICATORS.some(rx => rx.test(fullText));
+      return hasFictional || hasPerson;
+    }
+
+    const hasPerson = PERSON_INDICATORS.some(rx => rx.test(fullText));
+    return hasPerson;
+  }
+
+  extractDebutYear(text, title) {
+    if (!text) return 2000;
+    const m = text.match(/\b(?:debut|appeared|introduced|published|created|phát hành|xuất hiện|ra mắt|năm)\s*(?:in|vào)?\s*(19\d{2}|20[0-2]\d)\b/i);
+    if (m) return Number(m[1]);
+    const mAny = text.match(/\b(19\d{2}|20[0-2]\d)\b/);
+    if (mAny) return Number(mAny[1]);
+    return 2000;
+  }
+
+  getCandidateImage(images) {
+    if (!Array.isArray(images) || images.length === 0) return null;
+    const EXCLUDE_EXT = /\.(svg|ogg|oga|ogv|webm|mp3|mp4|wav|xml)$/i;
+    const EXCLUDE_NAMES = /(flag_|icon|logo|coat_of_arms|symbol|map_|stub|disambig|question_mark|portal|commons-logo|wikiquote|crystal_clear|ambox|padlock|arrow|button|red_penc|edit-clear)/i;
+
+    for (const it of images) {
+      const title = typeof it === 'string' ? it : it.title;
+      if (!title) continue;
+      if (EXCLUDE_EXT.test(title)) continue;
+      if (EXCLUDE_NAMES.test(title)) continue;
+      return title;
+    }
+    return null;
+  }
+
+  async resolveMissingImages(pages, domain) {
+    if (!Array.isArray(pages) || pages.length === 0) return;
+
+    // 1. Local page images (already fetched via prop=images) — batch imageinfo.
+    const missing = [];
+    for (const p of pages) {
+      if ((!p.thumbnail || !p.thumbnail.source) && Array.isArray(p.images) && p.images.length > 0) {
+        const candidate = this.getCandidateImage(p.images);
+        if (candidate) missing.push({ page: p, fileTitle: candidate });
+      }
+    }
+    if (missing.length) {
+      for (let i = 0; i < missing.length; i += 15) {
+        const chunk = missing.slice(i, i + 15);
+        const titles = chunk.map(x => x.fileTitle).join('|');
+        try {
+          const url = `https://${domain}/w/api.php?action=query&format=json&origin=*&titles=${encodeURIComponent(titles)}&prop=imageinfo&iiprop=url&iiurlwidth=500`;
+          const j = await this.fetchJSON(url, 6000);
+          if (j && j.query && j.query.pages) {
+            const imgPages = Object.values(j.query.pages);
+            for (const item of chunk) {
+              const found = imgPages.find(ip => ip.title === item.fileTitle || (item.fileTitle.endsWith(ip.title) || ip.title.endsWith(item.fileTitle)));
+              if (found && found.imageinfo && found.imageinfo[0]) {
+                const src = found.imageinfo[0].thumburl || found.imageinfo[0].url;
+                if (src) {
+                  if (!item.page.thumbnail) item.page.thumbnail = {};
+                  item.page.thumbnail.source = src;
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[WikipediaModel] Error resolving images batch:', err);
+        }
+      }
+    }
+
+    // 2. Any page STILL missing a thumbnail gets the REST Summary resolver
+    //    (own domain → EN langlinks → EN pageimages → Wikidata P18), in parallel.
+    const stillMissing = pages.filter(p => !p.thumbnail || !p.thumbnail.source);
+    if (stillMissing.length) {
+      await Promise.all(stillMissing.map(p => this.resolvePageImage(p, domain)));
+    }
+  }
+
+  // --- Cross-language image fallback for Wikipedia pages ---
+  // PRIMARY: Wikipedia REST Summary API (official, single-hop, returns
+  // thumbnail + originalimage on the same payload). Falls back to the older
+  // langlinks + Wikidata P18 chain only when REST is unavailable.
+  getEnTitle(p) {
+    if (!p || !Array.isArray(p.langlinks)) return null;
+    const en = p.langlinks.find(l => l.lang === 'en');
+    return en ? en['*'] : null;
+  }
+
+  normalizeWikiImg(url) {
+    if (!url) return null;
+    let u = String(url).trim().replace(/^http:\/\//i, 'https://');
+    // Accept any https:// Wikimedia / Wikipedia / Fandom IMAGE, plus local
+    // custom paths (./  /assets/) used by SecretRecipes.js.
+    // Reject API endpoints (api.php, /api/rest_v1/, /rest.php, /w/) and
+    // article pages (/wiki/...).
+    const isWikimedia =
+      /^https:\/\/(?:[^/]*\.)?wikimedia\.org\//i.test(u) &&
+      !/^https:\/\/(?:[^/]*\.)?wikimedia\.org\/(api|rest_v1|w\/)/i.test(u);
+    const isWikipedia =
+      /^https:\/\/(?:[^/]*\.)?wikipedia\.org\//i.test(u) &&
+      !/^https:\/\/(?:[^/]*\.)?wikipedia\.org\/(api|rest_v1|w\/|\/wiki)/i.test(u);
+    const isFandom =
+      /^https:\/\/(?:[^/]*\.)?(?:wikia\.nocookie\.net|fandom\.com)\//i.test(u) &&
+      !/^https:\/\/(?:[^/]*\.)?(?:wikia\.nocookie\.net|fandom\.com)\/(api|rest_v1|w\/)/i.test(u);
+    const isLocal = /^(\.\/|\/assets\/)/i.test(u);
+
+    if (!isWikimedia && !isWikipedia && !isFandom && !isLocal) return null;
+
+    // static.wikia.nocookie.net serves /revision/latest/... variants — strip
+    // everything from the file extension onward so the direct .png/.jpg loads.
+    u = u.replace(/(\.(?:png|jpg|jpeg|webp|gif))\/revision\/latest.*$/i, '$1');
+    return u;
+  }
+
+  // Official REST Summary API — returns the canonical portrait for a title.
+  // Returns the normalized URL, or null if the page has no image.
+  async fetchRestThumbnail(title, domain) {
+    if (!title || !domain) return null;
+    const u = `https://${domain}/api/rest_v1/page/summary/` + encodeURIComponent(title);
+    try {
+      const j = await this.fetchJSON(u, 6000);
+      if (!j) return null;
+      // Skip disambiguation / redirect stubs that carry no image.
+      if (j.type === 'disambiguation' || j.type === 'redirect') return null;
+      const src = (j.thumbnail && j.thumbnail.source) || (j.originalimage && j.originalimage.source);
+      return src ? this.normalizeWikiImg(src) : null;
+    } catch (err) {
+      console.warn(`[WikipediaModel] REST summary (${domain}/${title}) failed:`, err);
+      return null;
+    }
+  }
+
+  // Resolve a single page's image in priority order. Mutates p.thumbnail.
+  async resolvePageImage(p, domain) {
+    if (!p) return;
+    if (p.thumbnail && p.thumbnail.source) return;
+
+    // 1. REST summary on the page's own domain (vi.wikipedia.org first).
+    const ownDomain = domain || (p.fullurl ? p.fullurl.replace(/^https?:\/\//, '').split('/')[0] : null);
+    if (ownDomain) {
+      const img = await this.fetchRestThumbnail(p.title, ownDomain);
+      if (img) { if (!p.thumbnail) p.thumbnail = {}; p.thumbnail.source = img; return; }
+    }
+
+    // 2. English REST summary via langlinks.
+    const enTitle = this.getEnTitle(p);
+    if (enTitle) {
+      const img = await this.fetchRestThumbnail(enTitle, 'en.wikipedia.org');
+      if (img) { if (!p.thumbnail) p.thumbnail = {}; p.thumbnail.source = img; return; }
+    }
+
+    // 3. Legacy fallback: English pageimages API.
+    if (enTitle) {
+      const img = await this.fetchEnThumbnail(enTitle);
+      if (img) { if (!p.thumbnail) p.thumbnail = {}; p.thumbnail.source = img; return; }
+    }
+
+    // 4. Legacy fallback: Wikidata P18 image property.
+    const wbId = p.pageprops && p.pageprops.wikibase_item;
+    if (wbId) {
+      const img = await this.fetchWikidataImage(wbId);
+      if (img) { if (!p.thumbnail) p.thumbnail = {}; p.thumbnail.source = img; }
+    }
+  }
+
+  async fetchEnThumbnail(enTitle) {
+    if (!enTitle) return null;
+    const params = new URLSearchParams({
+      action: 'query', format: 'json', origin: '*',
+      titles: enTitle,
+      prop: 'pageimages|pageprops',
+      pithumbsize: '500',
+      piprop: 'thumbnail'
+    });
+    try {
+      const j = await this.fetchJSON('https://en.wikipedia.org/w/api.php?' + params, 6000);
+      if (!j || !j.query || !j.query.pages) return null;
+      for (const pg of Object.values(j.query.pages)) {
+        if (pg.thumbnail && pg.thumbnail.source) {
+          return this.normalizeWikiImg(pg.thumbnail.source);
+        }
+      }
+    } catch (err) {
+      console.warn('[WikipediaModel] EN thumbnail fetch failed:', err);
+    }
+    return null;
+  }
+
+  async fetchWikidataImage(wbId) {
+    if (!wbId) return null;
+    try {
+      const j = await this.fetchJSON(`https://www.wikidata.org/wiki/Special:EntityData/${encodeURIComponent(wbId)}.json`, 6000);
+      const ent = j && j.entities && j.entities[wbId];
+      if (!ent || !ent.claims || !ent.claims.P18 || !ent.claims.P18.length) return null;
+      const val = ent.claims.P18[0].mainsnak && ent.claims.P18[0].mainsnak.datavalue;
+      if (!val || val.type !== 'string' || !val.value) return null;
+      return this.normalizeWikiImg('https://upload.wikimedia.org/wikipedia/commons/' + val.value);
+    } catch (err) {
+      console.warn('[WikipediaModel] Wikidata P18 fetch failed:', err);
+    }
+    return null;
+  }
+
+  async resolveViMissingThumbnail(p, domain) {
+    // Kept for backwards compatibility — delegates to the unified resolver.
+    return this.resolvePageImage(p, domain);
+  }
+
+  // Resolve an already-parsed card's image via the REST Summary API.
+  // Used by fetchPool() so the Gacha roller never receives a card with img=null.
+  async resolveCardImage(card) {
+    if (!card || card.img) return;
+    const title = card.title || card.name;
+    if (!title) return;
+
+    const hostOf = u => { try { return new URL(u).hostname; } catch (_) { return null; } };
+
+    // Try the card's own article domain first, then its Vi mirror, then EN.
+    const domains = [];
+    const own = hostOf(card.url);
+    if (own) domains.push(own);
+    const vi = hostOf(card.urlVi);
+    if (vi && !domains.includes(vi)) domains.push(vi);
+    if (!domains.includes('en.wikipedia.org')) domains.push('en.wikipedia.org');
+
+    for (const d of domains) {
+      const img = await this.fetchRestThumbnail(title, d);
+      if (img) { card.img = img; return; }
+    }
+  }
+
+  async resolveFandomMissingImages(pages, fandomDomain) {
+    if (!Array.isArray(pages) || pages.length === 0) return;
+    const missing = [];
+    for (const p of pages) {
+      if ((!p.thumbnail || !p.thumbnail.source) && Array.isArray(p.images) && p.images.length > 0) {
+        const candidate = this.getCandidateImage(p.images);
+        if (candidate) {
+          missing.push({ page: p, fileTitle: candidate });
+        }
+      }
+    }
+    if (missing.length === 0) return;
+
+    for (let i = 0; i < missing.length; i += 15) {
+      const chunk = missing.slice(i, i + 15);
+      const titles = chunk.map(x => x.fileTitle).join('|');
+      try {
+        const url = `https://${fandomDomain}/api.php?action=query&format=json&origin=*&titles=${encodeURIComponent(titles)}&prop=imageinfo&iiprop=url&iiurlwidth=500`;
+        const j = await this.fetchJSON(url, 6000);
+        if (j && j.query && j.query.pages) {
+          const imgPages = Object.values(j.query.pages);
+          for (const item of chunk) {
+            const found = imgPages.find(ip => ip.title === item.fileTitle || (item.fileTitle.endsWith(ip.title) || ip.title.endsWith(item.fileTitle)));
+            if (found && found.imageinfo && found.imageinfo[0]) {
+              const src = found.imageinfo[0].thumburl || found.imageinfo[0].url;
+              if (src) {
+                if (!item.page.thumbnail) item.page.thumbnail = {};
+                item.page.thumbnail.source = src;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[WikipediaModel] Error resolving Fandom images batch:', err);
+      }
+    }
+  }
+
+  extractLeadFromWikitext(wikitext, title) {
+    if (!wikitext) return '';
+    let s = wikitext;
+    s = s.replace(/\{\{[^{}]*\}\}/g, '');
+    s = s.replace(/\{\{[^{}]*\}\}/g, '');
+    s = s.replace(/<!--[\s\S]*?-->/g, '');
+    s = s.replace(/<gallery[\s\S]*?<\/gallery>/gi, '');
+    s = s.replace(/<ref[\s\S]*?<\/ref>/gi, '');
+    s = s.replace(/<ref[^>]*\/>/gi, '');
+    s = s.replace(/<[^>]+>/g, '');
+    s = s.replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1');
+    s = s.replace(/'''?/g, '');
+    s = s.replace(/==[\s\S]*$/g, '');
+
+    const paras = s.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 25);
+    const lead = paras[0] || (title + ' là một nhân vật nổi tiếng trong thế giới giả tưởng.');
+    return lead.slice(0, 500).trim();
+  }
+
+  async fetchFandomCategory(fandomDomain, category, limit = 12) {
+    const catName = category.startsWith('Category:') ? category : 'Category:' + category;
+    const params = new URLSearchParams({
+      action: 'query',
+      format: 'json',
+      origin: '*',
+      generator: 'categorymembers',
+      gcmtitle: catName,
+      gcmlimit: String(limit),
+      prop: 'pageimages|images|info|revisions',
+      rvprop: 'content',
+      rvlimit: '1',
+      piprop: 'thumbnail',
+      pithumbsize: '500',
+      imlimit: '10',
+      inprop: 'url'
+    });
+
+    try {
+      const j = await this.fetchJSON(`https://${fandomDomain}/api.php?` + params, 9000);
+      const pages = j && j.query && j.query.pages ? Object.values(j.query.pages) : [];
+      return await this.parseFandomPages(pages, fandomDomain);
+    } catch (e) {
+      console.warn(`[WikipediaModel] Failed to fetch Fandom ${fandomDomain} ${category}:`, e);
+      return [];
+    }
+  }
+
+  async fetchFandomSearch(fandomDomain, query, limit = 12) {
+    const params = new URLSearchParams({
+      action: 'query',
+      format: 'json',
+      origin: '*',
+      generator: 'search',
+      gsrsearch: query,
+      gsrlimit: String(limit),
+      prop: 'pageimages|images|info|revisions',
+      rvprop: 'content',
+      rvlimit: '1',
+      piprop: 'thumbnail',
+      pithumbsize: '500',
+      imlimit: '10',
+      inprop: 'url'
+    });
+
+    try {
+      const j = await this.fetchJSON(`https://${fandomDomain}/api.php?` + params, 9000);
+      const pages = j && j.query && j.query.pages ? Object.values(j.query.pages) : [];
+      return await this.parseFandomPages(pages, fandomDomain);
+    } catch (e) {
+      console.warn(`[WikipediaModel] Failed to fetch Fandom search ${fandomDomain} ${query}:`, e);
+      return [];
+    }
+  }
+
+  async parseFandomPages(pages, fandomDomain) {
+    if (!Array.isArray(pages) || pages.length === 0) return [];
+    await this.resolveFandomMissingImages(pages, fandomDomain);
+
+    const cards = [];
+    for (const p of pages) {
+      if (!this.validateEntity(p, 'en', true)) continue;
+
+      let wikitext = '';
+      if (p.revisions && p.revisions[0]) {
+        wikitext = p.revisions[0]['*'] || (p.revisions[0].slots && p.revisions[0].slots.main ? p.revisions[0].slots.main['*'] : '');
+      }
+
+      const summary = this.extractLeadFromWikitext(wikitext, p.title) || p.title + ' is a notable character featured in ' + fandomDomain.replace('.fandom.com', '') + '.';
+      const summaryVi = this.translateLeadToVietnamese(summary);
+
+      const img = this.normalizeWikiImg(p.thumbnail && p.thumbnail.source ? p.thumbnail.source : null);
+      const cleanName = p.title.replace(/\s*\(.*\)$/, '');
+
+      const card = {
+        title: p.title,
+        name: cleanName,
+        birth: this.extractDebutYear(wikitext + ' ' + summary, p.title),
+        death: null,
+        countryId: 'any',
+        era: 'century_21',
+        desc: `Nhân vật giả tưởng (${fandomDomain.replace('.fandom.com', '')})`,
+        summary: summaryVi,
+        summaryEn: summary,
+        summaryVi,
+        img,
+        url: p.fullurl || (`https://${fandomDomain}/wiki/` + encodeURIComponent(p.title.replace(/ /g, '_'))),
+        urlVi: null,
+        gender: this.guessGender(summary, ''),
+        source: 'fandom',
+        universe: 'fictional',
+        ev: null,
+        text: (p.title + ' ' + summary).toLowerCase()
+      };
+
+      card.targetRole = this.extractTargetRole(card, 'vi');
+      card.ethnicity = 'Mọi nguồn gốc (Any)';
+      card.religion = 'Thần thoại / Đa thần (Polytheism / Pagans)';
+      cards.push(card);
+    }
+    return cards;
+  }
+
+  async fetchWikiCategory(category, domain = 'vi.wikipedia.org', limit = 15) {
+    const isVi = domain.startsWith('vi');
+    const catName = category.startsWith('Category:') || category.startsWith('Thể loại:') ? category : (isVi ? 'Thể loại:' : 'Category:') + category;
+    const params = new URLSearchParams({
+      action: 'query',
+      format: 'json',
+      origin: '*',
+      generator: 'categorymembers',
+      gcmtitle: catName,
+      gcmlimit: String(limit),
+      prop: 'extracts|pageimages|images|description|info|langlinks',
+      exintro: '1',
+      explaintext: '1',
+      exsentences: '4',
+      piprop: 'thumbnail',
+      pithumbsize: '500',
+      imlimit: '15',
+      inprop: 'url',
+      lllang: isVi ? 'en' : 'vi',
+      lllimit: 'max'
+    });
+
+    try {
+      const j = await this.fetchJSON(`https://${domain}/w/api.php?` + params, 9000);
+      const pages = j && j.query && j.query.pages ? Object.values(j.query.pages) : [];
+      await this.resolveMissingImages(pages, domain);
+      return pages.map(p => this.parsePage(p, isVi ? 'vi' : 'en', true)).filter(Boolean);
+    } catch (e) {
+      console.warn(`[WikipediaModel] Failed to fetch Wiki category ${domain} ${category}:`, e);
+      return [];
+    }
+  }
+
+  parsePage(p, lang = 'en', isFictional = false) {
     const ex = (p.extract || '').trim();
     if (!ex || /may refer to/i.test(ex.slice(0, 300)) || /có thể đề cập đến/i.test(ex.slice(0, 300))) return null;
+
+    // Strict character entity validation
+    if (!this.validateEntity(p, lang, isFictional)) {
+      return null;
+    }
+
     const life = this.parseLife(ex);
-    if (!life) return null;
+    if (!isFictional && !life) return null;
 
     const desc = p.description || '';
     const blob = desc + ' ' + ex.slice(0, 350);
@@ -753,20 +1633,21 @@ export class WikipediaModel {
       }
     }
 
-    const img = p.thumbnail && p.thumbnail.source ? p.thumbnail.source : null;
+    const img = this.normalizeWikiImg(p.thumbnail && p.thumbnail.source ? p.thumbnail.source : null);
     const ll = p.langlinks && p.langlinks[0] ? p.langlinks[0]['*'] : null;
-    const era = this.deriveEra(life.b);
+    const birthYear = life ? life.b : this.extractDebutYear(ex, p.title);
+    const era = this.deriveEra(birthYear);
 
     const summaryVi = lang === 'vi' ? ex : this.translateLeadToVietnamese(ex);
 
     const card = {
       title: p.title,
       name: p.title.replace(/\s*\(.*\)$/, ''),
-      birth: life.b,
-      death: life.d,
+      birth: birthYear,
+      death: life ? life.d : null,
       countryId: cid,
       era,
-      desc: desc || (lang === 'vi' ? 'nhân vật lịch sử' : 'historical figure'),
+      desc: desc || (isFictional ? (lang === 'vi' ? 'nhân vật hư cấu' : 'fictional character') : (lang === 'vi' ? 'nhân vật lịch sử' : 'historical figure')),
       summary: lang === 'vi' ? ex : summaryVi,
       summaryEn: ex,
       summaryVi,
@@ -775,6 +1656,7 @@ export class WikipediaModel {
       urlVi: lang === 'vi' ? p.fullurl : (ll ? 'https://vi.wikipedia.org/wiki/' + encodeURIComponent(ll.replace(/ /g, '_')) : null),
       gender: this.guessGender(ex, desc),
       source: 'wiki',
+      universe: isFictional ? 'fictional' : 'historical',
       ev: null,
       text: (ex + ' ' + desc).toLowerCase()
     };
@@ -788,6 +1670,9 @@ export class WikipediaModel {
 
   isFigureInTimeframe(card, minYearParam, maxYearParam = 2026) {
     if (!card) return false;
+    // Fictional characters transcend strict historical year constraints
+    if (card.universe === 'fictional') return true;
+
     const selectedMin = Number(minYearParam != null ? minYearParam : (typeof UserProfileModel?.getBirthYear === 'function' ? UserProfileModel.getBirthYear() : 500));
     const maxYear = maxYearParam || 2026;
 
@@ -837,7 +1722,7 @@ export class WikipediaModel {
     return false;
   }
 
-  async wikiSearch(query, offset, limit, domain = 'vi.wikipedia.org', minYear = null, maxYear = 2026) {
+  async wikiSearch(query, offset, limit, domain = 'vi.wikipedia.org', minYear = null, maxYear = 2026, isFictional = false) {
     const isVi = domain.startsWith('vi');
     const params = new URLSearchParams({
       action: 'query',
@@ -848,31 +1733,64 @@ export class WikipediaModel {
       gsrnamespace: '0',
       gsrlimit: String(limit),
       gsroffset: String(offset),
-      prop: 'extracts|pageimages|description|info|langlinks',
+      // Lean payload: no images, no extra props beyond what we need
+      prop: 'extracts|description|info|langlinks',
       exintro: '1',
       explaintext: '1',
       exsentences: '4',
       exlimit: 'max',
-      piprop: 'thumbnail',
-      pithumbsize: '400',
-      pilimit: 'max',
-      inprop: 'url',
+      // Limit links to just EN to keep payload lean
       lllang: isVi ? 'en' : 'vi',
-      lllimit: 'max'
+      lllimit: '50'
     });
 
-    const j = await this.fetchJSON(`https://${domain}/w/api.php?` + params, 9000);
-    const pages = j.query && j.query.pages ? Object.values(j.query.pages) : [];
-    const parsed = pages.map(p => this.parsePage(p, isVi ? 'vi' : 'en')).filter(Boolean);
-    if (minYear != null && Number(minYear) > 500) {
+    const url = `https://${domain}/w/api.php?` + params;
+    let j;
+    try {
+      j = await this.cachedFetchJSON(url, 9000);
+    } catch (err) {
+      if (this.isRateLimited()) {
+        console.warn('[WikipediaModel] Rate limited — aborting remaining calls in this cycle');
+        throw err;
+      }
+      return [];
+    }
+    const pages = j && j.query && j.query.pages ? Object.values(j.query.pages) : [];
+
+    // Image resolution deferred to resolveCardImage — keep lean here
+    const parsed = pages.map(p => this.parsePage(p, isVi ? 'vi' : 'en', isFictional)).filter(Boolean);
+    if (!isFictional && minYear != null && Number(minYear) > 500) {
       return parsed.filter(card => this.isFigureInTimeframe(card, minYear, maxYear));
     }
     return parsed;
   }
 
   async fetchPool(inp = {}) {
+    // Hard timeout: the expanded pool query (5-6 countries × 8 queries each) can
+    // take minutes when Wikipedia is slow. Race the whole implementation against
+    // a 6000ms wall-clock limit so the UI never freezes mid-spin.
+    const POOL_TIMEOUT_MS = 6000;
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('fetchPool timeout')), POOL_TIMEOUT_MS)
+    );
+
+    try {
+      return await Promise.race([
+        this._fetchPoolImpl(inp),
+        timeoutPromise
+      ]);
+    } catch (err) {
+      if (err && err.message === 'fetchPool timeout') {
+        console.warn('[WikipediaModel] fetchPool timed out after', POOL_TIMEOUT_MS, 'ms — falling back to offline pool');
+      }
+      throw err;
+    }
+  }
+
+  async _fetchPoolImpl(inp = {}) {
     const map = new Map();
     const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+    const universe = inp.universe || 'historical';
 
     // 1. Extract selectedMinYear & currentYear
     const selectedMinYear = (typeof UserProfileModel?.getBirthYear === 'function' ? UserProfileModel.getBirthYear() : null)
@@ -883,12 +1801,12 @@ export class WikipediaModel {
     const currentYear = 2026;
     const timeframe = selectedMinYear <= 500 ? '[500 TO 2026]' : `[${selectedMinYear} TO ${currentYear}]`;
 
-    // Build filter tokens based on Ethnicity, Religion and Country
+    // 2. Build search query tokens from country, ethnicity, religion
     const ethItem = ETHNICITIES.find(x => x[0] === inp.ethnicity);
     const relItem = RELIGIONS.find(x => x[0] === inp.religion);
     const cItem = COUNTRIES.find(x => x[0] === inp.country);
 
-    // Vietnamese query tokens
+    // Vietnamese query tokens (from country/ethnicity/religion)
     const viEthQuery = {
       jewish: 'Do Thái',
       austrian: 'người Áo',
@@ -909,7 +1827,8 @@ export class WikipediaModel {
       polytheism: 'thần thoại'
     }[inp.religion] || '';
 
-    const viCountryQuery = cItem && cItem[0] !== 'any' ? cItem[2] : '';
+    // Use country's queryVi for dynamic search (falls back to labelVi)
+    const viCountryQuery = cItem && cItem[0] !== 'any' ? (cItem[4] || cItem[2]) : '';
 
     // English query tokens
     const enEthQuery = {
@@ -932,50 +1851,87 @@ export class WikipediaModel {
       polytheism: 'Mythology'
     }[inp.religion] || '';
 
-    const enCountryQuery = cItem && cItem[0] !== 'any' ? cItem[3] : '';
+    // Use country's queryEn for dynamic search (falls back to labelEn)
+    const enCountryQuery = cItem && cItem[0] !== 'any' ? (cItem[3] || cItem[1]) : '';
 
-    // 2. Priority: Query Vietnamese Wikipedia first with dynamic timeframe
-    const viSearchQueries = [
-      [viEthQuery, viRelQuery, viCountryQuery, timeframe].filter(Boolean).join(' '),
-      [viEthQuery || viRelQuery || viCountryQuery || 'nhân vật lịch sử', timeframe].filter(Boolean).join(' '),
-      [viCountryQuery, 'tiểu sử', timeframe].filter(Boolean).join(' ')
-    ].filter(Boolean);
-
-    const viJobs = viSearchQueries.map(q =>
-      this.wikiSearch(q, rnd(0, 15), 14, 'vi.wikipedia.org', selectedMinYear, currentYear)
-    );
-
-    const viResults = await Promise.allSettled(viJobs);
-    let viCount = 0;
-    viResults.forEach(r => {
-      if (r.status === 'fulfilled') {
-        r.value.forEach(card => {
-          if (!map.has(card.title) && this.isFigureInTimeframe(card, selectedMinYear, currentYear)) {
-            card.selectedMinYear = selectedMinYear;
-            map.set(card.title, card);
-            viCount++;
-          }
+    // 3. If country is 'any' and historical/multiverse, sample 5-6 diverse countries
+    let dynamicCountries = [cItem];
+    if ((universe === 'historical' || universe === 'multiverse') && (!cItem || cItem[0] === 'any')) {
+      const regions = [
+        { continent: 'Asia', countries: ['CN', 'JP', 'IN', 'VN', 'KR', 'ID', 'TH', 'TR', 'IR', 'SA'] },
+        { continent: 'Europe', countries: ['GB', 'FR', 'DE', 'IT', 'ES', 'RU', 'PL', 'NL', 'SE', 'GR'] },
+        { continent: 'Americas', countries: ['US', 'BR', 'MX', 'CA', 'AR', 'CO', 'PE', 'CL'] },
+        { continent: 'Africa', countries: ['EG', 'NG', 'ZA', 'ET', 'KE', 'MA', 'GH', 'DZ'] },
+        { continent: 'Oceania', countries: ['AU', 'NZ', 'FJ', 'PG'] }
+      ];
+      // Sample 1-2 from each region for diversity
+      regions.forEach(region => {
+        const sampled = region.countries.sort(() => Math.random() - 0.5).slice(0, 2);
+        sampled.forEach(code => {
+          const country = COUNTRIES.find(c => c[0] === code);
+          if (country) dynamicCountries.push(country);
         });
-      }
-    });
+      });
+    }
 
-    // 3. Fallback / Supplement: Query English Wikipedia if needed with dynamic timeframe
-    if (map.size < 24) {
-      const enSearchQueries = [
-        [enEthQuery, enRelQuery, enCountryQuery, timeframe].filter(Boolean).join(' '),
-        [enEthQuery || enRelQuery || enCountryQuery || 'historical figure', timeframe].filter(Boolean).join(' '),
-        [enCountryQuery, timeframe || 'biography'].filter(Boolean).join(' ')
-      ].filter(Boolean);
+    // 1. If universe is 'fictional' or 'multiverse', query MASSIVE Fandom Wikis and Wikipedia fictional categories
+    if (universe === 'fictional' || universe === 'multiverse') {
+      const fictionalJobs = [
+        // Gaming Fandom Wikis - MAJOR EXPANSION
+        this.fetchFandomCategory('genshin-impact.fandom.com', 'Playable_Characters', 50),
+        this.fetchFandomCategory('honkai-star-rail.fandom.com', 'Playable_Characters', 50),
+        this.fetchFandomCategory('leagueoflegends.fandom.com', 'Champions', 50),
+        this.fetchFandomCategory('finalfantasy.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('zelda.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('naruto.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('onepiece.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('dragonball.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('bleach.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('attackontitan.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('marvel.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('dc.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('starwars.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('harrypotter.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('lotr.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('witcher.fandom.com', 'Characters', 50),
+        this.fetchFandomCategory('villains.fandom.com', 'Anime_Villains', 50),
+        this.fetchFandomCategory('villains.fandom.com', 'Video_Game_Villains', 50),
+        this.fetchFandomCategory('villains.fandom.com', 'Marvel_Villains', 50),
+        this.fetchFandomCategory('villains.fandom.com', 'DC_Villains', 50),
+        this.fetchFandomCategory('hero.fandom.com', 'Anime_Heroes', 50),
+        this.fetchFandomCategory('hero.fandom.com', 'Video_Game_Heroes', 50),
+        this.fetchFandomCategory('hero.fandom.com', 'Superheroes', 50),
+        this.fetchFandomSearch('anime.fandom.com', 'character', 50),
+        this.fetchFandomSearch('gaming.fandom.com', 'character', 50),
+        this.fetchFandomSearch('fantasy.fandom.com', 'character', 50),
+        this.fetchFandomSearch('mythology.fandom.com', 'character', 50),
+        // Vietnamese Wikipedia fictional categories
+        this.fetchWikiCategory('Nhân vật trò chơi điện tử', 'vi.wikipedia.org', 50),
+        this.fetchWikiCategory('Nhân vật hư cấu', 'vi.wikipedia.org', 50),
+        this.fetchWikiCategory('Nhân vật anime', 'vi.wikipedia.org', 50),
+        this.fetchWikiCategory('Nhân vật manga', 'vi.wikipedia.org', 50),
+        this.fetchWikiCategory('Nhân vật thần thoại', 'vi.wikipedia.org', 50),
+        this.wikiSearch('nhân vật hoạt hình OR nhân vật anime OR nhân vật game', rnd(0, 20), 50, 'vi.wikipedia.org', null, 2026, true),
+        this.wikiSearch('siêu anh hùng OR nhân vật giả tưởng OR thần thoại', rnd(0, 20), 50, 'vi.wikipedia.org', null, 2026, true),
+        // English Wikipedia fictional categories - MAJOR EXPANSION
+        this.fetchWikiCategory('Fictional characters', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Video game characters', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Anime and manga characters', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Fantasy characters', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Mythological figures', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Superhero characters', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Literary characters', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Television characters', 'en.wikipedia.org', 50),
+        this.fetchWikiCategory('Film characters', 'en.wikipedia.org', 50),
+        this.wikiSearch('fictional character OR video game character OR anime character', rnd(0, 30), 50, 'en.wikipedia.org', null, 2026, true),
+        this.wikiSearch('superhero OR supervillain OR fantasy character', rnd(0, 30), 50, 'en.wikipedia.org', null, 2026, true)
+      ];
 
-      const enJobs = enSearchQueries.map(q =>
-        this.wikiSearch(q, rnd(0, 25), 16, 'en.wikipedia.org', selectedMinYear, currentYear)
-      );
-
-      const enResults = await Promise.allSettled(enJobs);
-      enResults.forEach(r => {
-        if (r.status === 'fulfilled') {
+      const fResults = await Promise.allSettled(fictionalJobs);
+      fResults.forEach(r => {
+        if (r.status === 'fulfilled' && Array.isArray(r.value)) {
           r.value.forEach(card => {
-            if (!map.has(card.title) && this.isFigureInTimeframe(card, selectedMinYear, currentYear)) {
+            if (card && card.title && !map.has(card.title)) {
               card.selectedMinYear = selectedMinYear;
               map.set(card.title, card);
             }
@@ -984,9 +1940,60 @@ export class WikipediaModel {
       });
     }
 
-    // 4. Fill from offline historical archive if still under threshold, enforcing timeframe
+    // 2. If universe is 'historical' or 'multiverse', query Historical Wikipedia sources per dynamic country
+    if (universe === 'historical' || universe === 'multiverse') {
+      for (const country of dynamicCountries) {
+        if (!country || country[0] === 'any') continue;
+
+        const viCQ = country[4] || country[2];
+        const enCQ = country[3] || country[1];
+
+        // Vietnamese search queries with country-specific tokens
+        const viQueries = [
+          [viEthQuery, viRelQuery, viCQ, timeframe].filter(Boolean).join(' '),
+          [viEthQuery || viRelQuery || viCQ || 'nhân vật lịch sử', timeframe].filter(Boolean).join(' '),
+          [viCQ, 'tiểu sử', timeframe].filter(Boolean).join(' '),
+          ['người ' + viCQ, timeframe].filter(Boolean).join(' ')
+        ].filter(Boolean);
+
+        const viJobs = viQueries.map(q =>
+          this.wikiSearch(q, rnd(0, 20), 50, 'vi.wikipedia.org', selectedMinYear, currentYear, false)
+        );
+
+        // English search queries with country-specific tokens
+        const enQueries = [
+          [enEthQuery, enRelQuery, enCQ, timeframe].filter(Boolean).join(' '),
+          [enEthQuery || enRelQuery || enCQ || 'historical figure', timeframe].filter(Boolean).join(' '),
+          [enCQ, timeframe || 'biography'].filter(Boolean).join(' '),
+          ['people from ' + enCQ, timeframe].filter(Boolean).join(' ')
+        ].filter(Boolean);
+
+        const enJobs = enQueries.map(q =>
+          this.wikiSearch(q, rnd(0, 30), 50, 'en.wikipedia.org', selectedMinYear, currentYear, false)
+        );
+
+        const allJobs = [...viJobs, ...enJobs];
+        const allResults = await Promise.allSettled(allJobs);
+
+        allResults.forEach(r => {
+          if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+            r.value.forEach(card => {
+              if (!map.has(card.title) && this.isFigureInTimeframe(card, selectedMinYear, currentYear)) {
+                card.selectedMinYear = selectedMinYear;
+                map.set(card.title, card);
+              }
+            });
+          }
+        });
+
+        // Early exit if we have enough cards
+        if (map.size >= 120) break;
+      }
+    }
+
+    // 3. Fallback to offline archive if still under threshold
     if (map.size < 24) {
-      this.offlinePool(selectedMinYear, currentYear).forEach(card => {
+      this.offlinePool(selectedMinYear, currentYear, universe).forEach(card => {
         if (!map.has(card.title) && this.isFigureInTimeframe(card, selectedMinYear, currentYear)) {
           card.selectedMinYear = selectedMinYear;
           map.set(card.title, card);
@@ -995,10 +2002,37 @@ export class WikipediaModel {
     }
 
     if (map.size === 0) throw new Error('network');
-    return [...map.values()];
+
+    // 4. Score and filter candidates using the modular 3-stage ScoringEngine
+    // DO NOT resolve images for all cards here — that causes 429 floods!
+    // Images will be resolved on-demand for the 20 sampled cards in getInstantSpinCandidates()
+    const rawCandidates = [...map.values()];
+
+    // Shuffle to prevent repetitive top results
+    const shuffled = rawCandidates.sort(() => Math.random() - 0.5);
+
+    // Apply 3-stage scoring with hard constraints
+    const ranked = filterAndRankCandidates(shuffled, inp, 10);
+
+    // Attach evaluation metadata for admin panel and CardView
+    ranked.forEach(c => {
+      if (c._eval) {
+        c.score = c._eval.score;
+        c.tier = c._eval.tier;
+        c.matchedCriteria = c._eval.matchedCriteria;
+        c.hobbyMatch = c._eval.hobbyMatch;
+      }
+    });
+
+    // Store the full ranked pool for reactive prefetch sampling
+    this._lastRankedPool = ranked;
+
+    // Return cards WITHOUT resolving images — only the final 20 spin candidates
+    // will have their images resolved via getInstantSpinCandidates()
+    return ranked;
   }
 
-  offlinePool(minYearParam = null, maxYearParam = 2026) {
+  offlineHistoricalPool(minYearParam = null, maxYearParam = 2026) {
     const selectedMinYear = minYearParam != null
       ? Number(minYearParam)
       : (typeof UserProfileModel?.getBirthYear === 'function' ? UserProfileModel.getBirthYear() : 500);
@@ -1024,6 +2058,7 @@ export class WikipediaModel {
       urlVi: null,
       gender: o[11],
       source: 'offline',
+      universe: 'historical',
       ev: { en: o[12], vi: o[13] },
       targetRole: o[15] || o[14],
       targetRoleEn: o[14],
@@ -1033,6 +2068,47 @@ export class WikipediaModel {
     }));
 
     return all.filter(c => this.isFigureInTimeframe(c, selectedMinYear, currentYear));
+  }
+
+  offlineFictionalPool() {
+    return OFFLINE_FICTIONAL.map(f => ({
+      title: f[0],
+      name: f[0],
+      birth: f[1],
+      death: null,
+      countryId: f[2],
+      era: 'century_21',
+      ethnicity: 'any',
+      religion: 'polytheism',
+      desc: f[4] || f[3],
+      descEn: f[3],
+      descVi: f[4],
+      summary: f[6] || f[5],
+      summaryEn: f[5],
+      summaryVi: f[6],
+      img: f[7],
+      url: f[8] || ('https://en.wikipedia.org/wiki/' + encodeURIComponent(f[0].replace(/ /g, '_'))),
+      urlVi: null,
+      gender: f[9],
+      source: 'offline',
+      universe: 'fictional',
+      ev: { en: f[10], vi: f[11] },
+      targetRole: f[13] || f[12],
+      targetRoleEn: f[12],
+      targetRoleVi: f[13],
+      text: (f[0] + ' ' + f[5] + ' ' + f[6]).toLowerCase(),
+      selectedMinYear: 500
+    }));
+  }
+
+  offlinePool(minYearParam = null, maxYearParam = 2026, universe = 'historical') {
+    if (universe === 'fictional') {
+      return this.offlineFictionalPool();
+    }
+    if (universe === 'multiverse') {
+      return [...this.offlineHistoricalPool(minYearParam, maxYearParam), ...this.offlineFictionalPool()];
+    }
+    return this.offlineHistoricalPool(minYearParam, maxYearParam);
   }
 
   score(c, inp = {}) {
@@ -1048,7 +2124,7 @@ export class WikipediaModel {
     );
     const maxYear = 2026;
 
-    if (minYear <= 500) {
+    if (c.universe === 'fictional' || minYear <= 500) {
       P.era = 1.0;
     } else {
       const b = c.birth;
@@ -1067,8 +2143,20 @@ export class WikipediaModel {
       }
     }
 
+    // Universe multiplier
+    const targetUniverse = inp.universe || 'historical';
+    const cardUniverse = c.universe || 'historical';
+    let universeMultiplier = 1.0;
+    if (targetUniverse === 'multiverse') {
+      universeMultiplier = 1.0;
+    } else if (targetUniverse === cardUniverse) {
+      universeMultiplier = 1.0;
+    } else {
+      universeMultiplier = 0.35;
+    }
+
     // Ethnicity match
-    if (inp.ethnicity === 'any') {
+    if (inp.ethnicity === 'any' || c.universe === 'fictional') {
       P.ethnicity = 0.85;
     } else if (inp.ethnicity === 'custom' && inp.ethnicityCustom) {
       P.ethnicity = c.text.includes(inp.ethnicityCustom.toLowerCase()) ? 1.0 : 0.2;
@@ -1080,7 +2168,7 @@ export class WikipediaModel {
     }
 
     // Religion match
-    if (inp.religion === 'any') {
+    if (inp.religion === 'any' || c.universe === 'fictional') {
       P.religion = 0.85;
     } else {
       const relItem = RELIGIONS.find(x => x[0] === inp.religion);
@@ -1090,7 +2178,7 @@ export class WikipediaModel {
     }
 
     // Country match
-    P.country = inp.country === 'any' ? 0.8 : (c.countryId === inp.country ? 1 : 0.15);
+    P.country = (inp.country === 'any' || c.universe === 'fictional') ? 0.8 : (c.countryId === inp.country ? 1 : 0.15);
 
     // Gender match
     P.gender = (inp.tgender === 'male' || inp.tgender === 'female')
@@ -1118,7 +2206,7 @@ export class WikipediaModel {
       tot += (P[k] || 0) * WT[k];
     }
 
-    const total = Math.round(tot);
+    const total = Math.min(100, Math.round(tot * universeMultiplier));
     const tier = total > 85 ? 'rare' : total >= 65 ? 'mid' : 'common';
 
     return { total, parts: P, tier };
