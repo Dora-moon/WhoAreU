@@ -5,6 +5,39 @@
  */
 
 export class RouletteView {
+  // --- Batched portrait-rescue persistence -------------------------------
+  // During a 10X pull we can rescue 20-40 portraits. Firing one
+  // POST /api/character-pool per rescue would hammer the server (and each
+  // call is a separate Vercel cold start). Instead, rescued character
+  // objects are queued in a static Map and flushed in a SINGLE batched
+  // POST after an 800ms debounce.
+  static _rescueQueue = new Map();
+  static _rescueTimer = null;
+  static _rescueDebounceMs = 800;
+
+  static _flushRescueQueue() {
+    if (RouletteView._rescueQueue.size === 0) return;
+    const characters = Array.from(RouletteView._rescueQueue.values());
+    RouletteView._rescueQueue.clear();
+    RouletteView._rescueTimer = null;
+    if (typeof fetch === 'undefined') return;
+    try {
+      fetch('/api/character-pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characters })
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  static _scheduleRescueFlush() {
+    if (RouletteView._rescueTimer) return;
+    RouletteView._rescueTimer = setTimeout(
+      () => RouletteView._flushRescueQueue(),
+      RouletteView._rescueDebounceMs
+    );
+  }
+
   constructor() {
     this.$ = s => document.querySelector(s);
     this.wheelVp = this.$('#wheelVp');
@@ -104,35 +137,32 @@ export class RouletteView {
     if (onFallback) onFallback();
   }
 
-  // Fire-and-forget POST of a newly rescued portrait to the character pool.
+  // Queue a newly rescued portrait for a single batched POST to the character
+  // pool. Never fires a separate request per rescue — see the static
+  // _rescueQueue / _scheduleRescueFlush above.
   _persistRescuedImage(card, imageUrl) {
-    if (typeof fetch === 'undefined' || !card || !imageUrl) return;
+    if (!card || !imageUrl) return;
     const name = card.title || card.name;
     if (!name) return;
     const char_key = String(name).toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '').slice(0, 220);
-    try {
-      fetch('/api/character-pool', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          characters: [{
-            char_key,
-            name: String(name).trim(),
-            enTitle: card.enTitle || String(name),
-            universe: card.universe || 'historical',
-            country: card.countryId || 'any',
-            gender: card.gender || 'any',
-            ethnicity: card.ethnicity || 'any',
-            religion: card.religion || 'any',
-            eraYear: card.birth != null ? Number(card.birth) : null,
-            targetRole: card.targetRole || null,
-            bioVi: card.summaryVi || card.descVi || null,
-            bioEn: card.summaryEn || card.descEn || card.summary || card.desc || null,
-            imageUrl
-          }]
-        })
-      }).catch(() => {});
-    } catch (_) {}
+    // De-duplicate by char_key — only the most recent rescue for a character
+    // needs to be persisted.
+    RouletteView._rescueQueue.set(char_key, {
+      char_key,
+      name: String(name).trim(),
+      enTitle: card.enTitle || String(name),
+      universe: card.universe || 'historical',
+      country: card.countryId || 'any',
+      gender: card.gender || 'any',
+      ethnicity: card.ethnicity || 'any',
+      religion: card.religion || 'any',
+      eraYear: card.birth != null ? Number(card.birth) : null,
+      targetRole: card.targetRole || null,
+      bioVi: card.summaryVi || card.descVi || null,
+      bioEn: card.summaryEn || card.descEn || card.summary || card.desc || null,
+      imageUrl
+    });
+    RouletteView._scheduleRescueFlush();
   }
 
   getCardBackground(card) {

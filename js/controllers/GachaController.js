@@ -7,6 +7,73 @@
 import { WIN_INDEX } from '../models/GachaModel.js';
 
 export class GachaController {
+  // Persist every card pulled in a multi-pull to the Museum of Curiosities.
+  // This must run even when /api/character-pool is empty or offline — the
+  // inventory is a local-first collection, so a failed remote fetch must
+  // never silently drop the pulled cards.
+  _savePullsToInventory(pulls, inp) {
+    if (!Array.isArray(pulls) || !pulls.length) return;
+    if (!this.inventoryModel) return;
+    const L = this.userProfileModel ? this.userProfileModel.lang : 'en';
+    const t = k => this.userProfileModel ? this.userProfileModel.t(k) : k;
+    const seen = new Set();
+    pulls.forEach(card => {
+      if (!card || !card.name) return;
+      const key = String(card.name).toLowerCase().trim();
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const st = card._story || {
+        en: {
+          headline: card.name,
+          ch1: card.desc || '',
+          ch2: '',
+          ch3: '',
+          itemName: 'Curious Artifact',
+          itemDesc: card.desc || ''
+        },
+        vi: {
+          headline: card.name,
+          ch1: card.desc || '',
+          ch2: '',
+          ch3: '',
+          itemName: 'Cổ vật kỳ lạ',
+          itemDesc: card.desc || ''
+        }
+      };
+
+      this.inventoryModel.addItem({
+        id: 'mp_' + (card.pageid != null ? card.pageid : key),
+        card_id: 'mp_' + (card.pageid != null ? card.pageid : key),
+        card: {
+          name: card.name,
+          birth: card.birth != null ? Number(card.birth) : null,
+          death: card.death || null,
+          countryId: card.countryId || 'any',
+          desc: card.desc || '',
+          summary: card.summary || card.desc || '',
+          summaryVi: card.summaryVi || card.summary || card.desc || '',
+          summaryEn: card.summaryEn || card.summary || card.desc || '',
+          img: card.img || null,
+          url: card.url || null,
+          urlVi: card.urlVi || null,
+          tier: card.tier || 'common',
+          score: card.score != null ? card.score : 50,
+          source: card.source || 'wiki',
+          universe: card.universe || (inp && inp.universe) || 'historical',
+          eraYear: card.eraYear != null ? card.eraYear : (card.birth != null ? Number(card.birth) : null),
+          gender: card.gender || null,
+          targetRole: card.targetRole || null,
+          ethnicity: card.ethnicity || null,
+          religion: card.religion || null
+        },
+        st,
+        absurd: card.absurd != null ? card.absurd : 50,
+        ts: Date.now()
+      });
+    });
+    this.cardView.updateInventoryBadge(this.inventoryModel.getCount());
+  }
   constructor({ userProfileModel, wikipediaModel, gachaModel, rouletteView, cardView, audioView, storyController }) {
     this.userProfileModel = userProfileModel;
     this.wikipediaModel = wikipediaModel;
@@ -248,6 +315,11 @@ export class GachaController {
       // Execute multi pulls — bounded for loop + pity guarantee lives in GachaModel
       const { pulls, bestCard } = this.gachaModel.buildMultiPulls(pool, count);
       this.renderInitialPity();
+
+      // Persist ALL pulled cards to the Museum of Curiosities immediately.
+      // This is local-first: even if /api/character-pool is empty or offline,
+      // the 10X pull still lands in the inventory.
+      this._savePullsToInventory(pulls, inp);
 
       // Wheel preview of the best card
       const { list } = this.gachaModel.buildWheel(pool, false);
