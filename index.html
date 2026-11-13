@@ -1,428 +1,434 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Live Wikipedia Gacha: Real-Time History Matcher &amp; Absurd Story Engine</title>
-  <meta name="theme-color" content="#1e1e2d">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Live Wikipedia Gacha: Real-Time History Matcher &amp; Absurd Story Engine</title>
+    <meta name="theme-color" content="#1e1e2d">
 
-  <!-- Typography & Vietnamese-compatible Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Fredoka:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&family=Quicksand:wght@500;600;700;800&display=swap&subset=vietnamese" rel="stylesheet">
+    <!-- Typography & Vietnamese-compatible Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Fredoka:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&family=Quicksand:wght@500;600;700;800&display=swap&subset=vietnamese"
+        rel="stylesheet">
 
-  <!-- Modular Stylesheets (MVC Architecture) -->
-  <link rel="stylesheet" href="css/themes.css">
-  <link rel="stylesheet" href="css/main.css">
-  <link rel="stylesheet" href="css/components.css">
+    <!-- Modular Stylesheets (MVC Architecture) -->
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
 </head>
+
 <body>
-  <canvas id="confetti"></canvas>
+    <canvas id="confetti"></canvas>
 
-  <!-- Top Navigation Bar -->
-  <!-- Topbar order: [Gem Counter] -> [Profile Avatar/Button] -> [Language EN/VI] -> [Theme Toggle] -> [Sound] -> [Settings ⚙️] -->
-  <header class="top">
-    <div class="brand" id="logo">
-      <span class="logo-ico">🎰</span>
-      <div>
-        <h1 data-i18n="title">Live Wikipedia Gacha</h1>
-        <p class="sub" data-i18n="subtitle">Real-Time History Matcher &amp; Absurd Story Engine</p>
-      </div>
-    </div>
-    <div class="tools">
-      <button class="ib ib-gems" id="btnGems" type="button" data-i18n-title="gemTip" title="Diamonds &amp; Gems — Click to claim Daily Bonus">💎 <span id="gemCount">1600</span></button>
-      <button class="ib" id="btnInv" type="button" data-i18n-title="invTip">🏛️ <span id="invCount">0</span></button>
-      <button class="ib ib-profile" id="btnProfile" type="button" data-i18n-title="profileTip">🧑 <span id="hdrProfileName">Profile</span></button>
-      <button class="ib" id="btnLang" type="button" data-i18n-title="langTip">EN</button>
-      <button class="ib" id="btnTheme" type="button" data-i18n-title="themeTip">🌙</button>
-      <button class="ib" id="btnSound" type="button" data-i18n-title="soundTip">🔊</button>
-      <button class="ib" id="btnSettings" type="button" data-i18n-title="setTip">⚙️</button>
-    </div>
-  </header>
+    <!-- Top Navigation Bar -->
+    <!-- Topbar order: [Gem Counter] -> [Profile Avatar/Button] -> [Language EN/VI] -> [Theme Toggle] -> [Sound] -> [Settings ⚙️] -->
+    <header class="top">
+        <div class="brand" id="logo">
+            <span class="logo-ico">🎰</span>
+            <div>
+                <h1 data-i18n="title">Live Wikipedia Gacha</h1>
+                <p class="sub" data-i18n="subtitle">Real-Time History Matcher &amp; Absurd Story Engine</p>
+            </div>
+        </div>
+        <div class="tools">
+            <button class="ib ib-gems" id="btnGems" type="button" data-i18n-title="gemTip" title="Diamonds &amp; Gems — Click to claim Daily Bonus">💎 <span id="gemCount">1600</span></button>
+            <button class="ib" id="btnInv" type="button" data-i18n-title="invTip">🏛️ <span id="invCount">0</span></button>
+            <button class="ib ib-profile" id="btnProfile" type="button" data-i18n-title="profileTip">🧑 <span id="hdrProfileName">Profile</span></button>
+            <button class="ib" id="btnLang" type="button" data-i18n-title="langTip">EN</button>
+            <button class="ib" id="btnTheme" type="button" data-i18n-title="themeTip">🌙</button>
+            <button class="ib" id="btnSound" type="button" data-i18n-title="soundTip">🔊</button>
+            <button class="ib" id="btnSettings" type="button" data-i18n-title="setTip">⚙️</button>
+        </div>
+    </header>
 
-  <noscript><p style="text-align:center">This app needs JavaScript.</p></noscript>
+    <noscript><p style="text-align:center">This app needs JavaScript.</p></noscript>
 
-  <main>
-    <!-- 2-Column Cartoon Dashboard -->
-    <div class="dashboard-2col">
-      <!-- Left Column: CS:GO Horizontal Roulette & Main Action -->
-      <div class="col-left">
-        <!-- Roulette Spin Stage Panel -->
-        <section class="panel stage" id="stage">
-          <!-- Big Vibrant SPIN 1X and SPIN 10X Cartoon Action Buttons -->
-          <div class="spin-actions">
-            <button class="pull pull-1x" id="pullBtn" type="button">
+    <main>
+        <!-- 2-Column Cartoon Dashboard -->
+        <div class="dashboard-2col">
+            <!-- Left Column: CS:GO Horizontal Roulette & Main Action -->
+            <div class="col-left">
+                <!-- Roulette Spin Stage Panel -->
+                <section class="panel stage" id="stage">
+                    <!-- Big Vibrant SPIN 1X and SPIN 10X Cartoon Action Buttons -->
+                    <div class="spin-actions">
+                        <button class="pull pull-1x" id="pullBtn" type="button">
               <span>🎲</span> <span data-i18n="pull1x">SPIN 1X</span>
             </button>
-            <button class="pull pull-10x" id="pull10xBtn" type="button">
+                        <button class="pull pull-10x" id="pull10xBtn" type="button">
               <span>⚡</span> <span data-i18n="pull10x">SPIN 10X</span>
             </button>
-            <button class="pull admin-pool-btn" id="btnAdminPool" type="button" hidden data-i18n-title="adminPoolTip" title="Open Admin Pool Inspector">
+                        <button class="pull admin-pool-btn" id="btnAdminPool" type="button" hidden data-i18n-title="adminPoolTip" title="Open Admin Pool Inspector">
               <span>👁️</span> <span>Soi Pool Gacha</span>
             </button>
-          </div>
+                    </div>
 
-          <!-- Pity Stamina Tokens Bar -->
-          <div class="pity-container">
-            <span class="pity-label" data-i18n="pityL">Pity:</span>
-            <div class="pity" id="pity"></div>
-          </div>
+                    <!-- Pity Stamina Tokens Bar -->
+                    <div class="pity-container">
+                        <span class="pity-label" data-i18n="pityL">Pity:</span>
+                        <div class="pity" id="pity"></div>
+                    </div>
 
-          <div class="status" id="status"></div>
+                    <div class="status" id="status"></div>
 
-          <!-- CS:GO Horizontal Roulette Wheel -->
-          <div class="wheel" id="wheelVp">
-            <div class="ptr"></div>
-            <div class="track" id="track"></div>
-          </div>
-        </section>
+                    <!-- CS:GO Horizontal Roulette Wheel -->
+                    <div class="wheel" id="wheelVp">
+                        <div class="ptr"></div>
+                        <div class="track" id="track"></div>
+                    </div>
+                </section>
 
-        <!-- Result Fate Card Panel (Hidden until gacha roll completes) -->
-        <section class="panel" id="result" hidden>
-          <div class="rcard gacha-card dossier-card t-common" id="rcard">
-            <div class="rban" id="rBan"></div>
-            <div class="rbody dossier-card-content">
-              <div><div class="rimg" id="rImg"></div></div>
-              <div class="rinfo">
-                <h2 id="rName"></h2>
-                <div class="rmeta" id="rMeta"></div>
-                <p class="rdesc" id="rDesc"></p>
-                <div class="rsum" id="rSum"></div>
-                <div class="score">
-                  <div class="big" id="rScore"></div>
-                  <div class="bars" id="rBars"></div>
-                </div>
-                <div class="acts">
-                  <button class="btn" id="btnWeave" type="button" data-i18n="weave"></button>
-                  <a class="btn ghost" id="rLink" target="_blank" rel="noopener"></a>
-                  <span class="badge" id="rSrc"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+                <!-- Result Fate Card Panel (Hidden until gacha roll completes) -->
+                <section class="panel" id="result" hidden>
+                    <div class="rcard gacha-card dossier-card t-common" id="rcard">
+                        <div class="rban" id="rBan"></div>
+                        <div class="rbody dossier-card-content">
+                            <div>
+                                <div class="rimg" id="rImg"></div>
+                            </div>
+                            <div class="rinfo">
+                                <h2 id="rName"></h2>
+                                <div class="rmeta" id="rMeta"></div>
+                                <p class="rdesc" id="rDesc"></p>
+                                <div class="rsum" id="rSum"></div>
+                                <div class="score">
+                                    <div class="big" id="rScore"></div>
+                                    <div class="bars" id="rBars"></div>
+                                </div>
+                                <div class="acts">
+                                    <button class="btn" id="btnWeave" type="button" data-i18n="weave"></button>
+                                    <a class="btn ghost" id="rLink" target="_blank" rel="noopener"></a>
+                                    <span class="badge" id="rSrc"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-        <!-- Story Engine Presentation Panel -->
-        <section class="panel" id="storySec" hidden>
-          <div class="shead">
-            <h2 data-i18n="storyH"></h2>
-            <div class="shead-tools">
-              <span class="badge" id="modeBadge"></span>
-              <button class="btn-skip-anim" id="btnSkipAnim" type="button" data-i18n="skipAnim">⏩ Skip Animation</button>
-              <button class="ib close-btn modal-close" id="btnCloseStory" data-close-modal type="button" title="Đóng truyện / Close Story" aria-label="Close">✕</button>
+                <!-- Story Engine Presentation Panel -->
+                <section class="panel" id="storySec" hidden>
+                    <div class="shead">
+                        <h2 data-i18n="storyH"></h2>
+                        <div class="shead-tools">
+                            <span class="badge" id="modeBadge"></span>
+                            <button class="btn-skip-anim" id="btnSkipAnim" type="button" data-i18n="skipAnim">⏩ Skip Animation</button>
+                            <button class="ib close-btn modal-close" id="btnCloseStory" data-close-modal type="button" title="Đóng truyện / Close Story" aria-label="Close">✕</button>
+                        </div>
+                    </div>
+                    <div class="loader" id="storyLoader" hidden>
+                        <span class="spin"></span>
+                        <span data-i18n="loading"></span>
+                    </div>
+                    <div id="storyDialogueHeader"></div>
+                    <div id="storyBody"></div>
+                    <div id="choices" hidden>
+                        <h3 data-i18n="butterfly"></h3>
+                        <div id="choiceBtns" class="choices-grid"></div>
+                    </div>
+                    <div class="itembox" id="itemBox" hidden></div>
+                    <!-- Mini-Game Arena (revealed by StoryController when a chapter branches into a mini-game) -->
+                    <div class="minigame-arena" id="minigameArena" hidden>
+                        <!-- Mission Context Banner -->
+                        <div class="minigame-mission-banner">
+                            <div class="mission-avatar" id="minigameMissionAvatar" hidden></div>
+                            <div class="mission-info">
+                                <h3 id="minigameMissionTitle"></h3>
+                                <p id="minigameObjectiveHint" class="minigame-hint"></p>
+                            </div>
+                        </div>
+                        <div class="minigame-head">
+                            <span class="badge" id="minigameBadge">🎯 Mini-Game</span>
+                            <h3 id="minigameTitle"></h3>
+                        </div>
+                        <canvas id="minigameCanvas" width="640" height="360"></canvas>
+                        <div class="minigame-hud">
+                            <span id="minigameScore">Score: 0</span>
+                            <span id="minigameTimer">Time: 0s</span>
+                        </div>
+                        <div class="minigame-controls">
+                            <button class="btn" id="minigameStart" type="button">▶ Start</button>
+                            <button class="btn ghost" id="minigameSkip" type="button" data-i18n="skipAnim">⏭ Skip</button>
+                        </div>
+                        <p class="minigame-hint" id="minigameHint"></p>
+                    </div>
+                    <div class="acts" id="afterStory" hidden>
+                        <button class="btn" id="btnPaper" type="button"></button>
+                        <button class="btn" id="btnHolo" type="button"></button>
+                        <button class="btn ghost" id="btnCopy" type="button" data-i18n="copyStory"></button>
+                        <button class="btn ghost" id="btnAgain" type="button" data-i18n="again"></button>
+                    </div>
+                    <p class="hint" data-i18n="skipTip"></p>
+                </section>
             </div>
-          </div>
-          <div class="loader" id="storyLoader" hidden>
-            <span class="spin"></span>
-            <span data-i18n="loading"></span>
-          </div>
-          <div id="storyDialogueHeader"></div>
-          <div id="storyBody"></div>
-          <div id="choices" hidden>
-            <h3 data-i18n="butterfly"></h3>
-            <div id="choiceBtns" class="choices-grid"></div>
-          </div>
-          <div class="itembox" id="itemBox" hidden></div>
-          <!-- Mini-Game Arena (revealed by StoryController when a chapter branches into a mini-game) -->
-          <div class="minigame-arena" id="minigameArena" hidden>
-            <!-- Mission Context Banner -->
-            <div class="minigame-mission-banner">
-              <div class="mission-avatar" id="minigameMissionAvatar" hidden></div>
-              <div class="mission-info">
-                <h3 id="minigameMissionTitle"></h3>
-                <p id="minigameObjectiveHint" class="minigame-hint"></p>
-              </div>
-            </div>
-            <div class="minigame-head">
-              <span class="badge" id="minigameBadge">🎯 Mini-Game</span>
-              <h3 id="minigameTitle"></h3>
-            </div>
-            <canvas id="minigameCanvas" width="640" height="360"></canvas>
-            <div class="minigame-hud">
-              <span id="minigameScore">Score: 0</span>
-              <span id="minigameTimer">Time: 0s</span>
-            </div>
-            <div class="minigame-controls">
-              <button class="btn" id="minigameStart" type="button">▶ Start</button>
-              <button class="btn ghost" id="minigameSkip" type="button" data-i18n="skipAnim">⏭ Skip</button>
-            </div>
-            <p class="minigame-hint" id="minigameHint"></p>
-          </div>
-          <div class="acts" id="afterStory" hidden>
-            <button class="btn" id="btnPaper" type="button"></button>
-            <button class="btn" id="btnHolo" type="button"></button>
-            <button class="btn ghost" id="btnCopy" type="button" data-i18n="copyStory"></button>
-            <button class="btn ghost" id="btnAgain" type="button" data-i18n="again"></button>
-          </div>
-          <p class="hint" data-i18n="skipTip"></p>
-        </section>
-      </div>
 
-      <!-- Right Column: Target Filter Console -->
-      <div class="col-right">
-        <section class="panel" id="pTarget">
-          <h2 data-i18n="targetH">🎯 Target Filter Console</h2>
-          <div class="target-console">
-            <!-- 0. Universe Scope Card -->
-            <div class="target-card" id="tcUniverse">
-              <div class="tfh">
-                <label class="card-title" for="universeScope" id="lblUniverse" data-i18n="universeL">Phạm vi Vũ trụ</label>
-                <span class="tfb">
+            <!-- Right Column: Target Filter Console -->
+            <div class="col-right">
+                <section class="panel" id="pTarget">
+                    <h2 data-i18n="targetH">🎯 Target Filter Console</h2>
+                    <div class="target-console">
+                        <!-- 0. Universe Scope Card -->
+                        <div class="target-card" id="tcUniverse">
+                            <div class="tfh">
+                                <label class="card-title" for="universeScope" id="lblUniverse" data-i18n="universeL">Phạm vi Vũ trụ</label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="universe" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="universe" type="button">🔓</button>
                 </span>
-              </div>
-              <select id="universeScope" aria-labelledby="lblUniverse"></select>
-            </div>
+                            </div>
+                            <select id="universeScope" aria-labelledby="lblUniverse"></select>
+                        </div>
 
-            <!-- 1. Skin Tone Card -->
-            <div class="target-card">
-              <div class="tfh">
-                <span class="card-title" id="lblSkin">Skin Tone: <span id="skinOut" class="mono">rgb(198, 134, 66)</span></span>
-                <span class="tfb">
+                        <!-- 1. Skin Tone Card -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <span class="card-title" id="lblSkin">Skin Tone: <span id="skinOut" class="mono">rgb(198, 134, 66)</span></span>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="skin" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="skin" type="button">🔓</button>
                 </span>
-              </div>
-              <div class="row">
-                <input type="color" id="skin" value="#c68642" aria-labelledby="lblSkin">
-                <div class="presets" id="presets"></div>
-              </div>
-            </div>
+                            </div>
+                            <div class="row">
+                                <input type="color" id="skin" value="#c68642" aria-labelledby="lblSkin">
+                                <div class="presets" id="presets"></div>
+                            </div>
+                        </div>
 
-            <!-- 2. Target Gender Identity Card -->
-            <div class="target-card">
-              <div class="tfh">
-                <label class="card-title" for="tGender" id="lblTGender" data-i18n="tgenderL">Target Gender Identity</label>
-                <span class="tfb">
+                        <!-- 2. Target Gender Identity Card -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <label class="card-title" for="tGender" id="lblTGender" data-i18n="tgenderL">Target Gender Identity</label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="tgender" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="tgender" type="button">🔓</button>
                 </span>
-              </div>
-              <select id="tGender" aria-labelledby="lblTGender"></select>
-            </div>
+                            </div>
+                            <select id="tGender" aria-labelledby="lblTGender"></select>
+                        </div>
 
-            <!-- 3. Historical Era Slider Card (From Year X to Present) -->
-            <div class="target-card">
-              <div class="tfh">
-                <label class="card-title" for="eraYear" id="lblEra">Mốc lịch sử: <output id="eraOut">Từ 1900 đến Nay</output></label>
-                <span class="tfb">
+                        <!-- 3. Historical Era Slider Card (From Year X to Present) -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <label class="card-title" for="eraYear" id="lblEra">Mốc lịch sử: <output id="eraOut">Từ 1900 đến Nay</output></label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="era" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="era" type="button">🔓</button>
                 </span>
-              </div>
-              <input type="range" id="eraYear" min="500" max="2020" step="10" value="1900" aria-labelledby="lblEra">
-            </div>
+                            </div>
+                            <input type="range" id="eraYear" min="500" max="2020" step="10" value="1900" aria-labelledby="lblEra">
+                        </div>
 
-            <!-- 4. Ethnicity / Heritage Card -->
-            <div class="target-card">
-              <div class="tfh">
-                <label class="card-title" for="ethnicity" id="lblEthnicity" data-i18n="ethnicityL">Ethnicity / Heritage</label>
-                <span class="tfb">
+                        <!-- 4. Ethnicity / Heritage Card -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <label class="card-title" for="ethnicity" id="lblEthnicity" data-i18n="ethnicityL">Ethnicity / Heritage</label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="ethnicity" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="ethnicity" type="button">🔓</button>
                 </span>
-              </div>
-              <select id="ethnicity" aria-labelledby="lblEthnicity"></select>
-              <input id="ethnicityCustom" hidden maxlength="50" style="margin-top:8px" data-i18n-ph="customEthnicityPh" placeholder="Nhập sắc tộc tùy chỉnh...">
-            </div>
+                            </div>
+                            <select id="ethnicity" aria-labelledby="lblEthnicity"></select>
+                            <input id="ethnicityCustom" hidden maxlength="50" style="margin-top:8px" data-i18n-ph="customEthnicityPh" placeholder="Nhập sắc tộc tùy chỉnh...">
+                        </div>
 
-            <!-- 5. Religion / Beliefs Card -->
-            <div class="target-card">
-              <div class="tfh">
-                <label class="card-title" for="religion" id="lblReligion" data-i18n="religionL">Religion / Beliefs</label>
-                <span class="tfb">
+                        <!-- 5. Religion / Beliefs Card -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <label class="card-title" for="religion" id="lblReligion" data-i18n="religionL">Religion / Beliefs</label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="religion" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="religion" type="button">🔓</button>
                 </span>
-              </div>
-              <select id="religion" aria-labelledby="lblReligion"></select>
-            </div>
+                            </div>
+                            <select id="religion" aria-labelledby="lblReligion"></select>
+                        </div>
 
-            <!-- 4. Country / Origin Card -->
-            <div class="target-card">
-              <div class="tfh">
-                <label class="card-title" for="country" id="lblCountry" data-i18n="countryL">Country / Origin</label>
-                <span class="tfb">
+                        <!-- 4. Country / Origin Card -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <label class="card-title" for="country" id="lblCountry" data-i18n="countryL">Country / Origin</label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="country" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="country" type="button">🔓</button>
                 </span>
-              </div>
-              <input type="text" id="countrySearchInput" placeholder="🔍 Gõ tên nước để lọc nhanh..." class="country-search-input" aria-label="Search countries">
-              <select id="country" aria-labelledby="lblCountry"></select>
-            </div>
+                            </div>
+                            <input type="text" id="countrySearchInput" placeholder="🔍 Gõ tên nước để lọc nhanh..." class="country-search-input" aria-label="Search countries">
+                            <select id="country" aria-labelledby="lblCountry"></select>
+                        </div>
 
-            <!-- 5. Custom Trait & Quirk Card -->
-            <div class="target-card">
-              <div class="tfh">
-                <label class="card-title" for="trait" id="lblTrait" data-i18n="traitL">Custom Trait &amp; Weird Hobby</label>
-                <span class="tfb">
+                        <!-- 5. Custom Trait & Quirk Card -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <label class="card-title" for="trait" id="lblTrait" data-i18n="traitL">Custom Trait &amp; Weird Hobby</label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="trait" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="trait" type="button">🔓</button>
                 </span>
-              </div>
-              <input id="trait" maxlength="80" autocomplete="off" data-i18n-ph="traitPh" aria-labelledby="lblTrait">
-            </div>
+                            </div>
+                            <input id="trait" maxlength="80" autocomplete="off" data-i18n-ph="traitPh" aria-labelledby="lblTrait">
+                        </div>
 
-            <!-- 6. Story Absurdity Slider Card -->
-            <div class="target-card">
-              <div class="tfh">
-                <label class="card-title" for="absurd" id="lblAbsurd">Story Absurdity Level: <output id="absOut">50%</output></label>
-                <span class="tfb">
+                        <!-- 6. Story Absurdity Slider Card -->
+                        <div class="target-card">
+                            <div class="tfh">
+                                <label class="card-title" for="absurd" id="lblAbsurd">Story Absurdity Level: <output id="absOut">50%</output></label>
+                                <span class="tfb">
                   <button class="mini sm" data-roll="absurd" type="button" data-i18n-title="diceTip">🎲</button>
                   <button class="mini sm lock" data-lock="absurd" type="button">🔒</button>
                 </span>
-              </div>
-              <input type="range" id="absurd" min="0" max="100" value="50" aria-labelledby="lblAbsurd">
-              <p class="absdesc" id="absDesc"></p>
+                            </div>
+                            <input type="range" id="absurd" min="0" max="100" value="50" aria-labelledby="lblAbsurd">
+                            <p class="absdesc" id="absDesc"></p>
+                        </div>
+
+                        <!-- Action Buttons: Random All & Unlock All -->
+                        <div class="acts">
+                            <button class="btn" id="randAll" type="button" data-i18n="randomAll">🎲 Gacha Random All</button>
+                            <button class="btn ghost" id="unlockAll" type="button" data-i18n="unlockAll">🔓 Unlock All</button>
+                        </div>
+                    </div>
+                </section>
             </div>
+        </div>
+    </main>
 
-            <!-- Action Buttons: Random All & Unlock All -->
-            <div class="acts">
-              <button class="btn" id="randAll" type="button" data-i18n="randomAll">🎲 Gacha Random All</button>
-              <button class="btn ghost" id="unlockAll" type="button" data-i18n="unlockAll">🔓 Unlock All</button>
+    <footer data-i18n="footer"></footer>
+
+    <!-- User Profile Modal Dialog (Triggered from Topbar) -->
+    <dialog id="profileDlg">
+        <div class="dhead">
+            <h2 data-i18n="profileH">🧑 Your Profile — Traveler in History</h2>
+            <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
+        </div>
+        <label for="uName" data-i18n="userName">Your Name</label>
+        <div class="row">
+            <input id="uName" maxlength="40" autocomplete="off">
+            <button class="mini" id="rollName" type="button" data-i18n-title="diceTip">🎲</button>
+        </div>
+        <div class="row2">
+            <div>
+                <label for="uAge" data-i18n="ageL">Age</label>
+                <input id="uAge" type="number" min="1" max="120" value="25" inputmode="numeric">
             </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  </main>
+            <div>
+                <label for="uGender" data-i18n="genderL">Gender Identity</label>
+                <input id="uGender" list="uGenderList" maxlength="40" autocomplete="off" data-i18n-ph="genderPh">
+                <datalist id="uGenderList"></datalist>
+            </div>
+        </div>
+        <label for="uHobby" data-i18n="hobbiesL">Weird Hobbies &amp; Quirks</label>
+        <div class="row">
+            <textarea id="uHobby" rows="2" maxlength="160" data-i18n-ph="hobbiesPh"></textarea>
+            <button class="mini" id="rollHobby" type="button" data-i18n-title="diceTip">🎲</button>
+        </div>
+        <label for="uRole" data-i18n="roleL">Historical Role</label>
+        <select id="uRole"></select>
+        <input id="uRoleCustom" hidden maxlength="40" style="margin-top:8px" data-i18n-ph="customRolePh">
+        <label for="storyTone" data-i18n="storyToneL">Story Tone / Thể loại cốt truyện</label>
+        <select id="storyTone" data-i18n-ph="storyTonePh"></select>
+        <div class="dfoot">
+            <button class="btn" id="btnSaveProfile" type="button" data-i18n="save">Save &amp; Close</button>
+        </div>
+    </dialog>
 
-  <footer data-i18n="footer"></footer>
-
-  <!-- User Profile Modal Dialog (Triggered from Topbar) -->
-  <dialog id="profileDlg">
-    <div class="dhead">
-      <h2 data-i18n="profileH">🧑 Your Profile — Traveler in History</h2>
-      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
-    </div>
-    <label for="uName" data-i18n="userName">Your Name</label>
-    <div class="row">
-      <input id="uName" maxlength="40" autocomplete="off">
-      <button class="mini" id="rollName" type="button" data-i18n-title="diceTip">🎲</button>
-    </div>
-    <div class="row2">
-      <div>
-        <label for="uAge" data-i18n="ageL">Age</label>
-        <input id="uAge" type="number" min="1" max="120" value="25" inputmode="numeric">
-      </div>
-      <div>
-        <label for="uGender" data-i18n="genderL">Gender Identity</label>
-        <input id="uGender" list="uGenderList" maxlength="40" autocomplete="off" data-i18n-ph="genderPh">
-        <datalist id="uGenderList"></datalist>
-      </div>
-    </div>
-    <label for="uHobby" data-i18n="hobbiesL">Weird Hobbies &amp; Quirks</label>
-    <div class="row">
-      <textarea id="uHobby" rows="2" maxlength="160" data-i18n-ph="hobbiesPh"></textarea>
-      <button class="mini" id="rollHobby" type="button" data-i18n-title="diceTip">🎲</button>
-    </div>
-    <label for="uRole" data-i18n="roleL">Historical Role</label>
-    <select id="uRole"></select>
-    <input id="uRoleCustom" hidden maxlength="40" style="margin-top:8px" data-i18n-ph="customRolePh">
-    <label for="storyTone" data-i18n="storyToneL">Story Tone / Thể loại cốt truyện</label>
-    <select id="storyTone" data-i18n-ph="storyTonePh"></select>
-    <div class="dfoot">
-      <button class="btn" id="btnSaveProfile" type="button" data-i18n="save">Save &amp; Close</button>
-    </div>
-  </dialog>
-
-  <!-- Settings Dialog (Multi-Provider AI & Model Helper) -->
-  <dialog id="settingsDlg" class="settings-dialog">
-    <div class="dhead">
-      <h2 data-i18n="setH">⚙️ Cài đặt AI &amp; Âm thanh</h2>
-      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
-    </div>
-    <label for="sProv" data-i18n="provider">Nhà cung cấp AI</label>
-    <select id="sProv">
+    <!-- Settings Dialog (Multi-Provider AI & Model Helper) -->
+    <dialog id="settingsDlg" class="settings-dialog">
+        <div class="dhead">
+            <h2 data-i18n="setH">⚙️ Cài đặt AI &amp; Âm thanh</h2>
+            <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
+        </div>
+        <label for="sProv" data-i18n="provider">Nhà cung cấp AI</label>
+        <select id="sProv">
       <option value="gemini" selected>Google Gemini (Default)</option>
       <option value="openai">OpenAI (ChatGPT)</option>
       <option value="claude">Anthropic Claude</option>
     </select>
-    <label for="sKey" data-i18n="keyL">Khóa API</label>
-    <div class="key-field-wrap">
-      <input id="sKey" type="password" autocomplete="off" spellcheck="false" placeholder="Nhập API Key của bạn...">
-      <button class="key-eye-btn" id="btnToggleKey" type="button" title="Hiển thị / Ẩn khóa API">👁️</button>
-    </div>
-    <div class="api-link-badge" id="sKeyHelp"></div>
-    <p class="muted" data-i18n="keyNote"></p>
-    <label for="sModel" data-i18n="modelL">Mô hình AI</label>
-    <select id="sModel"></select>
-    <div class="model-rec-box" id="sModelRec"></div>
-    <label for="sVol" data-i18n="volume"></label>
-    <input id="sVol" type="range" min="0" max="100" value="60">
-    <div class="dfoot">
-      <button class="btn ghost" id="sClear" type="button" data-i18n="clearKey"></button>
-      <button class="btn" id="sSave" type="button" data-i18n="save"></button>
-    </div>
-  </dialog>
+        <label for="sKey" data-i18n="keyL">Khóa API</label>
+        <div class="key-field-wrap">
+            <input id="sKey" type="password" autocomplete="off" spellcheck="false" placeholder="Nhập API Key của bạn...">
+            <button class="key-eye-btn" id="btnToggleKey" type="button" title="Hiển thị / Ẩn khóa API">👁️</button>
+        </div>
+        <div class="api-link-badge" id="sKeyHelp"></div>
+        <p class="muted" data-i18n="keyNote"></p>
+        <label for="sModel" data-i18n="modelL">Mô hình AI</label>
+        <select id="sModel"></select>
+        <div class="model-rec-box" id="sModelRec"></div>
+        <label for="sVol" data-i18n="volume"></label>
+        <input id="sVol" type="range" min="0" max="100" value="60">
+        <div class="dfoot">
+            <button class="btn ghost" id="sClear" type="button" data-i18n="clearKey"></button>
+            <button class="btn" id="sSave" type="button" data-i18n="save"></button>
+        </div>
+    </dialog>
 
-  <!-- Museum of Curiosities Dialog -->
-  <dialog id="invDlg">
-    <div class="dhead">
-      <h2 data-i18n="invH"></h2>
-      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
-    </div>
-    <div id="invList">
-      <div class="muted" id="invStats"></div>
-      <div class="inv-grid" id="invGrid"></div>
-      <div class="dfoot">
-        <button class="btn ghost" id="invClear" type="button" data-i18n="clearInv"></button>
-      </div>
-    </div>
-    <div id="invDetail" hidden></div>
-  </dialog>
+    <!-- Museum of Curiosities Dialog -->
+    <dialog id="invDlg">
+        <div class="dhead">
+            <h2 data-i18n="invH"></h2>
+            <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
+        </div>
+        <div id="invList">
+            <div class="muted" id="invStats"></div>
+            <div class="inv-grid" id="invGrid"></div>
+            <div class="dfoot">
+                <button class="btn ghost" id="invClear" type="button" data-i18n="clearInv"></button>
+            </div>
+        </div>
+        <div id="invDetail" hidden></div>
+    </dialog>
 
-  <!-- Multi-Pull 10X Result Dialog -->
-  <dialog id="multiPullDlg">
-    <div class="dhead">
-      <h2 data-i18n="multi10xTitle">⚡ 10X Gacha Pull Results</h2>
-      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
-    </div>
-    <div class="muted" id="multiPullNote" data-i18n="multiPullNote">10 historical figures summoned from the timeline:</div>
-    <div class="inv-grid" id="multiPullGrid"></div>
-    <div class="dfoot">
-      <button class="btn" id="multiPullClose" type="button" data-i18n="inspectBest">Inspect Best Pull ★</button>
-    </div>
-  </dialog>
+    <!-- Multi-Pull 10X Result Dialog -->
+    <dialog id="multiPullDlg">
+        <div class="dhead">
+            <h2 data-i18n="multi10xTitle">⚡ 10X Gacha Pull Results</h2>
+            <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="muted" id="multiPullNote" data-i18n="multiPullNote">10 historical figures summoned from the timeline:</div>
+        <div class="inv-grid" id="multiPullGrid"></div>
+        <div class="dfoot">
+            <button class="btn" id="multiPullClose" type="button" data-i18n="inspectBest">Inspect Best Pull ★</button>
+        </div>
+    </dialog>
 
-  <!-- Canvas Export Dialog -->
-  <dialog id="expDlg">
-    <div class="dhead">
-      <h2 data-i18n="expTitle"></h2>
-      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
-    </div>
-    <div class="tabs">
-      <button class="btn ghost" id="tabPaper" type="button" data-i18n="paper"></button>
-      <button class="btn ghost" id="tabHolo" type="button" data-i18n="holo"></button>
-    </div>
-    <div class="loader" id="expLoad" hidden>
-      <span class="spin"></span>
-      <span data-i18n="rendering"></span>
-    </div>
-    <canvas id="expCanvas" width="10" height="10"></canvas>
-    <div class="dfoot">
-      <button class="btn ghost" id="expCopy" type="button" data-i18n="copyStory"></button>
-      <button class="btn" id="expDl" type="button" data-i18n="dl"></button>
-    </div>
-  </dialog>
+    <!-- Canvas Export Dialog -->
+    <dialog id="expDlg">
+        <div class="dhead">
+            <h2 data-i18n="expTitle"></h2>
+            <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="tabs">
+            <button class="btn ghost" id="tabPaper" type="button" data-i18n="paper"></button>
+            <button class="btn ghost" id="tabHolo" type="button" data-i18n="holo"></button>
+        </div>
+        <div class="loader" id="expLoad" hidden>
+            <span class="spin"></span>
+            <span data-i18n="rendering"></span>
+        </div>
+        <canvas id="expCanvas" width="10" height="10"></canvas>
+        <div class="dfoot">
+            <button class="btn ghost" id="expCopy" type="button" data-i18n="copyStory"></button>
+            <button class="btn" id="expDl" type="button" data-i18n="dl"></button>
+        </div>
+    </dialog>
 
-  <!-- Admin Character Pool Drawer / Dialog -->
-  <dialog id="adminPoolDlg" class="admin-pool-drawer">
-    <div class="dhead">
-      <h2 data-i18n="adminPoolH">🛠️ Character Pool &amp; Entity Inspector</h2>
-      <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
-    </div>
-    <div class="admin-pool-body" id="adminPoolBody">
-      <div class="admin-pool-stats" id="adminPoolStats"></div>
-      <div class="admin-pool-list" id="adminPoolList"></div>
-    </div>
-  </dialog>
+    <!-- Admin Character Pool Drawer / Dialog -->
+    <dialog id="adminPoolDlg" class="admin-pool-drawer">
+        <div class="dhead">
+            <h2 data-i18n="adminPoolH">🛠️ Character Pool &amp; Entity Inspector</h2>
+            <button class="ib close-btn modal-close" data-close data-close-modal type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="admin-pool-body" id="adminPoolBody">
+            <div class="admin-pool-stats" id="adminPoolStats"></div>
+            <div class="admin-pool-list" id="adminPoolList"></div>
+        </div>
+    </dialog>
 
-  <!-- Toast Notification -->
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- Application Bootstrap -->
-  <script type="module" src="js/app.js"></script>
+    <!-- Application Bootstrap -->
+    <script type="module" src="js/app.js"></script>
 </body>
+
 </html>

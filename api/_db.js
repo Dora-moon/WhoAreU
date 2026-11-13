@@ -12,9 +12,10 @@ function getRows(result) {
 }
 
 // Fallback in-memory store for local testing without database connection string
-const fallbackStore = {
+export const fallbackStore = {
   resources: new Map(), // userId -> { user_id, gems: 1600, pity_counter: 0, total_spins: 0, total_exports: 0 }
-  cards: new Map()      // card_id -> card
+  cards: new Map(),      // card_id -> card
+  discoveredCharacters: new Map() // char_key -> discovered character record
 };
 
 let initPromise = null;
@@ -58,6 +59,38 @@ export async function ensureTables() {
         try {
           await sql`ALTER TABLE user_resources ADD COLUMN IF NOT EXISTS user_name VARCHAR(200) DEFAULT '';`;
         } catch (e) {}
+
+        // Persistent Neon Character Pool — every discovered Wikipedia & Fandom
+        // character is upserted here so the Gacha pool continuously grows and
+        // serves instant, image-verified candidates across sessions.
+        await sql`
+          CREATE TABLE IF NOT EXISTS discovered_characters (
+            char_key VARCHAR(250) PRIMARY KEY,
+            name VARCHAR(250) NOT NULL,
+            en_title VARCHAR(250),
+            universe VARCHAR(50),
+            country VARCHAR(100),
+            gender VARCHAR(50),
+            ethnicity VARCHAR(100),
+            religion VARCHAR(100),
+            era_year INT,
+            target_role VARCHAR(250),
+            bio_vi TEXT,
+            bio_en TEXT,
+            img_url TEXT,
+            source_wiki VARCHAR(120),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `;
+        await sql`
+          CREATE INDEX IF NOT EXISTS idx_discovered_characters_universe ON discovered_characters (universe);
+        `;
+        await sql`
+          CREATE INDEX IF NOT EXISTS idx_discovered_characters_country ON discovered_characters (country);
+        `;
+        await sql`
+          CREATE INDEX IF NOT EXISTS idx_discovered_characters_gender ON discovered_characters (gender);
+        `;
       } catch (err) {
         console.error('[DB] ensureTables error:', err);
       }
@@ -252,6 +285,105 @@ export async function insertUserCard({
   `;
 
   return cardId;
+}
+
+// ---------------------------------------------------------------------------
+// Persistent Character Pool — discovered_characters
+// ---------------------------------------------------------------------------
+
+// Query discovered_characters with active filters. Prioritizes rows that
+// already have a portrait (img_url NOT NULL) and shuffles with RANDOM() so
+// every spin draws from a fresh, image-verified cast.
+export async function queryDiscoveredCharacters({ universe, country, gender, limit = 120 } = {}) {
+  const safeLimit = Math.max(1, Math.min(200, Number(limit) || 120));
+
+  if (!sql) {
+    let arr = [...fallbackStore.discoveredCharacters.values()];
+    if (universe) arr = arr.filter(c => !c.universe || c.universe === universe);
+    if (country) arr = arr.filter(c => !c.country || c.country === country);
+    if (gender) arr = arr.filter(c => !c.gender || c.gender === gender);
+    // Prioritize rows with a portrait, then shuffle.
+    arr.sort((a, b) => (b.img_url ? 1 : 0) - (a.img_url ? 1 : 0));
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.slice(0, safeLimit);
+  }
+
+  await ensureTables();
+
+  const result = await sql`
+    SELECT char_key, name, en_title, universe, country, gender, ethnicity, religion,
+           era_year, target_role, bio_vi, bio_en, img_url, source_wiki, updated_at
+    FROM discovered_characters
+    WHERE (${universe ? sql`universe = ${universe}` : sql`1 = 1`}
+      AND ${country ? sql`country = ${country}` : sql`1 = 1`}
+      AND ${gender ? sql`gender = ${gender}` : sql`1 = 1`})
+    ORDER BY (img_url IS NULL) ASC, RANDOM()
+    LIMIT ${safeLimit}
+  `;
+  return getRows(result);
+}
+
+// Batch upsert (max 60 items) into discovered_characters.
+// img_url is never downgraded: COALESCE(EXCLUDED.img_url, existing) keeps the
+// first portrait we ever found. country is never downgraded to 'any' either.
+export async function upsertDiscoveredCharacters(characters) {
+  if (!Array.isArray(characters) || !characters.length) return 0;
+  const clean = characters.filter(c => c && c.char_key).slice(0, 60);
+  if (!clean.length) return 0;
+
+  if (!sql) {
+    let n = 0;
+    for (const c of clean) {
+      const key = c.char_key;
+      const existing = fallbackStore.discoveredCharacters.get(key);
+      const merged = existing
+        ? {
+            ...existing,
+            ...c,
+            img_url: c.img_url || existing.img_url,
+            country: c.country && c.country !== 'any' ? c.country : (existing.country || 'any'),
+            updated_at: new Date().toISOString()
+          }
+        : { ...c, updated_at: new Date().toISOString() };
+      fallbackStore.discoveredCharacters.set(key, merged);
+      n++;
+    }
+    return n;
+  }
+
+  await ensureTables();
+
+  const values = clean.map(c => sql`(
+    ${c.char_key},
+    ${c.name || ''},
+    ${c.en_title || null},
+    ${c.universe || 'historical'},
+    ${c.country || 'any'},
+    ${c.gender || 'any'},
+    ${c.ethnicity || 'any'},
+    ${c.religion || 'any'},
+    ${c.era_year != null ? Number(c.era_year) : null},
+    ${c.target_role || null},
+    ${c.bio_vi || null},
+    ${c.bio_en || null},
+    ${c.img_url || null},
+    ${c.source_wiki || 'wiki'}
+  )`);
+
+  const result = await sql`
+    INSERT INTO discovered_characters (
+      char_key, name, en_title, universe, country, gender, ethnicity, religion,
+      era_year, target_role, bio_vi, bio_en, img_url, source_wiki
+    ) VALUES ${values}
+    ON CONFLICT (char_key) DO UPDATE SET
+      img_url = COALESCE(EXCLUDED.img_url, discovered_characters.img_url),
+      country = COALESCE(NULLIF(EXCLUDED.country, 'any'), discovered_characters.country),
+      updated_at = CURRENT_TIMESTAMP
+  `;
+  return values.length;
 }
 
 export async function trackCardExport(cardId, userId = null) {

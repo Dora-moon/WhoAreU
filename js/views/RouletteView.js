@@ -45,6 +45,96 @@ export class RouletteView {
       .toUpperCase();
   }
 
+  // Shared client-side image rescue. Whenever an <img> renders with no
+  // card.img OR fires onerror, fetch the Wikipedia REST Summary API right in
+  // the browser, update card.img in memory AND swap imgEl.src dynamically in
+  // place — replacing the monogram placeholder with the real portrait.
+  // referrerPolicy="no-referrer" is forced; crossOrigin is NEVER added to DOM
+  // <img> tags (Wikimedia/Fandom images lack CORS headers).
+  async resolveLivePortrait(imgEl, card, onFallback) {
+    if (!imgEl || !card) return;
+    const title = card.title || card.name;
+    if (!title) return;
+
+    const candidates = [
+      title,
+      card.enTitle,
+      card.wikiTitle,
+      String(title).replace(/\s*\(.*\)$/, '').trim()
+    ].filter(Boolean);
+
+    const hostOf = u => { try { return new URL(u).hostname; } catch (_) { return null; } };
+    const domains = [];
+    const own = hostOf(card.url);
+    if (own) domains.push(own);
+    const vi = hostOf(card.urlVi);
+    if (vi && !domains.includes(vi)) domains.push(vi);
+    if (!domains.includes('en.wikipedia.org')) domains.push('en.wikipedia.org');
+
+    const rescue = async (domain, cand) => {
+      const u = `https://${domain}/api/rest_v1/page/summary/` + encodeURIComponent(cand);
+      try {
+        const j = await fetch(u);
+        if (!j.ok) return null;
+        const data = await j.json();
+        if (!data || data.type === 'disambiguation' || data.type === 'redirect') return null;
+        return (data.thumbnail && data.thumbnail.source)
+          || (data.originalimage && data.originalimage.source)
+          || null;
+      } catch (_) { return null; }
+    };
+
+    for (const d of domains) {
+      for (const cand of candidates) {
+        const src = await rescue(d, cand);
+        if (src) {
+          card.img = src;
+          imgEl.referrerPolicy = 'no-referrer';
+          imgEl.removeAttribute('crossOrigin');
+          imgEl.src = src;
+          // Persist the rescued portrait back to the character pool so future
+          // spins load it in 0ms — fire-and-forget, never blocks the UI.
+          this._persistRescuedImage(card, src);
+          return;
+        }
+      }
+    }
+
+    // Live REST rescue returned no image — fall back to the monogram.
+    if (onFallback) onFallback();
+  }
+
+  // Fire-and-forget POST of a newly rescued portrait to the character pool.
+  _persistRescuedImage(card, imageUrl) {
+    if (typeof fetch === 'undefined' || !card || !imageUrl) return;
+    const name = card.title || card.name;
+    if (!name) return;
+    const char_key = String(name).toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '').slice(0, 220);
+    try {
+      fetch('/api/character-pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          characters: [{
+            char_key,
+            name: String(name).trim(),
+            enTitle: card.enTitle || String(name),
+            universe: card.universe || 'historical',
+            country: card.countryId || 'any',
+            gender: card.gender || 'any',
+            ethnicity: card.ethnicity || 'any',
+            religion: card.religion || 'any',
+            eraYear: card.birth != null ? Number(card.birth) : null,
+            targetRole: card.targetRole || null,
+            bioVi: card.summaryVi || card.descVi || null,
+            bioEn: card.summaryEn || card.descEn || card.summary || card.desc || null,
+            imageUrl
+          }]
+        })
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
   getCardBackground(card) {
     const hh = this.hueOf(card.name);
     const grad = `linear-gradient(135deg, hsl(${hh}, 65%, 42%), hsl(${(hh + 50) % 360}, 65%, 24%))`;
@@ -61,28 +151,45 @@ export class RouletteView {
     imgEl.className = 'im';
     imgEl.style.background = this.getCardBackground(card);
 
-    if (card.img) {
+    const showMonogram = () => {
+      const ini = document.createElement('span');
+      ini.className = 'ini';
+      ini.textContent = this.initials(card.name);
+      imgEl.append(ini);
+    };
+
+    const placeImg = (src) => {
       const imTag = document.createElement('img');
-      imTag.src = card.img;
+      imTag.src = src;
       imTag.alt = card.name || '';
       imTag.referrerPolicy = 'no-referrer';
       imTag.style.width = '100%';
       imTag.style.height = '100%';
       imTag.style.objectFit = 'cover';
       imTag.style.objectPosition = 'center 15%';
-      imTag.onerror = () => {
+      imTag.onerror = async () => {
+        await this.resolveLivePortrait(imTag, card, showMonogram);
+        if (imTag.complete && imTag.naturalWidth > 0) return;
         imTag.remove();
-        const ini = document.createElement('span');
-        ini.className = 'ini';
-        ini.textContent = this.initials(card.name);
-        imgEl.append(ini);
+        showMonogram();
       };
       imgEl.append(imTag);
+    };
+
+    if (card.img) {
+      placeImg(card.img);
     } else {
-      const ini = document.createElement('span');
-      ini.className = 'ini';
-      ini.textContent = this.initials(card.name);
-      imgEl.append(ini);
+      // No image yet — render a placeholder <img> and launch the live REST
+      // rescue immediately so the monogram is only the last resort.
+      const placeholder = document.createElement('img');
+      placeholder.alt = card.name || '';
+      placeholder.referrerPolicy = 'no-referrer';
+      placeholder.style.width = '100%';
+      placeholder.style.height = '100%';
+      placeholder.style.objectFit = 'cover';
+      placeholder.style.objectPosition = 'center 15%';
+      imgEl.append(placeholder);
+      this.resolveLivePortrait(placeholder, card, showMonogram);
     }
 
     const nmEl = document.createElement('div');

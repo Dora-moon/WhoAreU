@@ -455,17 +455,26 @@ export class CardView {
     return promise;
   }
 
-  // Client-side image rescue: Wikipedia REST Summary API, fetched directly in
-  // the browser. Sets imgElement.src in-place so the portrait appears without
-  // a full re-render. referrerPolicy=no-referrer is forced and crossOrigin is
-  // explicitly removed — Wikimedia/Fandom images do not set CORS headers.
+  // Shared client-side image rescue. Whenever an <img> renders with no
+  // card.img OR fires onerror, fetch the Wikipedia REST Summary API right in
+  // the browser, update card.img in memory AND swap imgEl.src dynamically in
+  // place — replacing the monogram placeholder with the real portrait.
+  // referrerPolicy="no-referrer" is forced; crossOrigin is NEVER added to DOM
+  // <img> tags (Wikimedia/Fandom images lack CORS headers).
   async rescueImage(imgElement, card) {
     if (!imgElement || !card) return;
     const title = card.title || card.name;
     if (!title) return;
 
-    const rescue = async (domain) => {
-      const u = `https://${domain}/api/rest_v1/page/summary/` + encodeURIComponent(title);
+    const candidates = [
+      title,
+      card.enTitle,
+      card.wikiTitle,
+      String(title).replace(/\s*\(.*\)$/, '').trim()
+    ].filter(Boolean);
+
+    const rescue = async (domain, cand) => {
+      const u = `https://${domain}/api/rest_v1/page/summary/` + encodeURIComponent(cand);
       try {
         const j = await fetch(u);
         if (!j.ok) return null;
@@ -483,12 +492,15 @@ export class CardView {
     if (!domains.includes('en.wikipedia.org')) domains.push('en.wikipedia.org');
 
     for (const d of domains) {
-      const src = await rescue(d);
-      if (src) {
-        imgElement.referrerPolicy = 'no-referrer';
-        imgElement.removeAttribute('crossOrigin');
-        imgElement.src = src;
-        return;
+      for (const cand of candidates) {
+        const src = await rescue(d, cand);
+        if (src) {
+          card.img = src;
+          imgElement.referrerPolicy = 'no-referrer';
+          imgElement.removeAttribute('crossOrigin');
+          imgElement.src = src;
+          return;
+        }
       }
     }
   }

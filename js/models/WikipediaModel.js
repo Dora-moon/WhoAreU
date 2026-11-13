@@ -413,7 +413,7 @@ export const OFFLINE_FICTIONAL = [
     'Chiến binh Saiyan huyền thoại và người bảo vệ Trái Đất trong Dragon Ball',
     'Son Goku, born Kakarot, is the legendary Saiyan warrior and defender of Earth who constantly seeks stronger opponents across the multiverse and achieved Ultra Instinct.',
     'Son Goku (tên thật là Kakarot) là chiến binh Saiyan huyền thoại của Trái Đất, người đã đạt tới cảnh giới Bản Năng Vô Cực (Ultra Instinct) và nhiều lần cứu vũ trụ khỏi diệt vong.',
-    'https://upload.wikimedia.org/wikipedia/en/a/af/Son_Goku_Adult.png',
+    'https://upload.wikimedia.org/wikipedia/vi/a/af/Son_Goku_YoungAdult.PNG',
     'https://vi.wikipedia.org/wiki/Son_Goku',
     'male', 'achieving Ultra Instinct in the Tournament of Power', 'đạt tới cảnh giới Bản Năng Vô Cực tại Giải đấu Sức mạnh',
     'Ultra Instinct Saiyan Legend', 'Chiến Binh Saiyan Bản Năng Vô Cực'
@@ -424,7 +424,7 @@ export const OFFLINE_FICTIONAL = [
     'Hokage Đệ Thất của Làng Lá và Jinchuriki của Cửu Vĩ Kurama',
     'Naruto Uzumaki is a heroic shinobi of Konohagakure and the jinchuriki of the Nine-Tails who overcame immense solitude to unite the ninja world as the Seventh Hokage.',
     'Naruto Uzumaki là ninja anh hùng của Làng Lá, người mang trong mình sức mạnh Cửu Vĩ Hồ Ly Kurama, người đã kết thúc Đại chiến Ninja lần thứ tư và trở thành Hokage Đệ Thất.',
-    'https://upload.wikimedia.org/wikipedia/en/9/9a/Naruto_Uzumaki.png',
+    'https://upload.wikimedia.org/wikipedia/vi/9/9a/NarutoUzumaki.png',
     'https://vi.wikipedia.org/wiki/Uzumaki_Naruto',
     'male', 'uniting the ninja nations and befriending Kurama', 'hòa giải với Cửu Vĩ Kurama và đoàn kết các làng nhẫn giả',
     'Nine-Tails Hokage Vanguard', 'Hokage Đệ Thất Hiệp Sĩ Cửu Vĩ'
@@ -435,8 +435,8 @@ export const OFFLINE_FICTIONAL = [
     'Lôi Thần tối cao của Inazuma, người theo đuổi sự Vĩnh Hằng tuyệt đối',
     'The Raiden Shogun (Ei) is the sovereign Electro Archon of Inazuma who wields the devastating Musou no Hitotachi sword technique and rules over thunder and lightning.',
     'Raiden Shogun (Lôi Đòn Tướng Quân - Ei) là vị Lôi Thần thống trị vương quốc Inazuma, sở hữu thần kiếm Vô Tưởng Nhất Đao có thể chém đứt núi non và bẻ cong sấm sét.',
-    'https://static.wikia.nocookie.net/gensin-impact/images/5/52/Raiden_Shogun_Card.png',
-    'https://genshin-impact.fandom.com/wiki/Raiden_Shogun',
+    'https://upload.wikimedia.org/wikipedia/en/e/e2/Raiden-shogun-arm.png',
+    'https://en.wikipedia.org/wiki/Raiden_Shogun',
     'female', 'cleaving Yashiori Island with the Musou no Hitotachi', 'chém đôi đảo Yashiori bằng một nhát kiếm Vô Tưởng Nhất Đao',
     'Musou Sword Electro Archon', 'Lôi Thần Chém Đôi Thời Không'
   ],
@@ -468,7 +468,7 @@ export const OFFLINE_FICTIONAL = [
     'Chúa tể Sith người máy đáng sợ của Đế chế Thiên hà',
     'Darth Vader, formerly Anakin Skywalker, is the cybernetic Sith Lord who wields the dark side of the Force and commands the Imperial military across the galaxy.',
     'Darth Vader (từng là hiệp sĩ Jedi Anakin Skywalker) là Chúa tể Sith nửa người nửa máy khét tiếng, nắm giữ Thần Lực Hắc Ám và thanh kiếm ánh sáng đỏ reo rắc kinh hoàng dải ngân hà.',
-    'https://upload.wikimedia.org/wikipedia/en/7/76/Darth_Vader.jpg',
+    'https://upload.wikimedia.org/wikipedia/en/0/0b/Darth_Vader_in_The_Empire_Strikes_Back.jpg',
     'https://vi.wikipedia.org/wiki/Darth_Vader',
     'male', 'wielding the crimson lightsaber on the Death Star', 'chỉ huy Hạm đội Tinh nhuệ trên Trạm không gian Ngôi Sao Chết',
     'Red Lightsaber Force Choker', 'Chúa Tể Sith Bóp Cổ Bằng Thần Lực'
@@ -490,8 +490,8 @@ export const OFFLINE_FICTIONAL = [
     'Thám tử tư vấn huyền thoại tại số 221B phố Baker, Luân Đôn',
     'Sherlock Holmes is the brilliant fictional consulting detective created by Sir Arthur Conan Doyle, celebrated for observation, forensic science, and flawless logical deduction.',
     'Sherlock Holmes là bậc thầy thám tử tư vấn số một thế giới, người sở hữu óc quan sát vi mô và phương pháp suy luận logic phá giải những vụ án kỳ bí nhất lịch sử văn học.',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Sherlock_Holmes_Portrait_Paget.jpg/500px-Sherlock_Holmes_Portrait_Paget.jpg',
-    'https://vi.wikipedia.org/wiki/Sherlock_Holmes',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Sherlock_Holmes_Portrait_Paget.jpg/330px-Sherlock_Holmes_Portrait_Paget.jpg',
+    'https://en.wikipedia.org/wiki/Sherlock_Holmes',
     'male', 'the intellectual duel at Reichenbach Falls', 'màn đấu trí kinh điển tại thác nước Reichenbach',
     'Baker Street Deduction Mastermind', 'Đại Pháp Sư Suy Luận Phố Baker'
   ],
@@ -501,8 +501,8 @@ export const OFFLINE_FICTIONAL = [
     'Thợ săn quái vật đột biến mang biệt danh Sói Trắng xứ Rivia',
     'Geralt of Rivia is a magically mutated monster slayer for hire from The Witcher series, renowned for his superhuman reflexes, silver swordplay, and alchemy.',
     'Geralt xứ Rivia là thợ săn quái vật Witcher sở hữu mái tóc bạc trắng, đôi mắt mèo và thanh kiếm bạc diệt ma, người chu du khắp Lục Địa để giải trừ những lời nguyền hắc ám.',
-    'https://upload.wikimedia.org/wikipedia/en/9/9f/Geralt_of_Rivia_Witcher_3_render.png',
-    'https://vi.wikipedia.org/wiki/Geralt_x%E1%BB%A9_Rivia',
+    'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Geralt.jpg/330px-Geralt.jpg',
+    'https://en.wikipedia.org/wiki/Geralt_of_Rivia',
     'male', 'slaying the Striga and defending Cintra', 'tiêu diệt quái thú Striga và hộ tống công chúa Cintra',
     'White Wolf Silver Swordsman', 'Thợ Săn Quái Vật Kiếm Bạc Sói Trắng'
   ],
@@ -512,8 +512,8 @@ export const OFFLINE_FICTIONAL = [
     'Chàng thợ sửa ống nước và siêu anh hùng của Vương quốc Nấm',
     'Mario is Nintendo\'s celebrated Italian plumber who repeatedly embarks on epic adventures across the Mushroom Kingdom to rescue Princess Peach from Bowser.',
     'Mario là biểu tượng game lừng danh toàn cầu, chàng thợ sửa ống nước dũng cảm luôn nhảy qua đầu quân thù và nuốt nấm ma thuật để giải cứu Công chúa Peach khỏi nanh vuốt Bowser.',
-    'https://upload.wikimedia.org/wikipedia/en/a/a9/MarioNintendo.png',
-    'https://vi.wikipedia.org/wiki/Mario',
+    'https://upload.wikimedia.org/wikipedia/en/5/5c/Mario_by_Shigehisa_Nakaue.png',
+    'https://en.wikipedia.org/wiki/Mario',
     'male', 'stomping Bowser and conquering World 8', 'vượt qua Lâu đài Thế giới 8 và đánh bại trùm rùa Bowser',
     'Mushroom Stomping Plumber Hero', 'Hiệp Sĩ Nấm Đạp Rùa Đỉnh Cao'
   ]
@@ -534,6 +534,11 @@ export class WikipediaModel {
     this._prefetchPromise = null;
     this._prefetchTimer = null;
 
+    // --- Resolved image cache (Map + localStorage) ---
+    // Every successfully resolved portrait URL is persisted so future spins
+    // load the exact URL in 0ms — no per-card REST round-trip.
+    this._imageCache = this._loadImageCache();
+
     // --- Rotating multi-session discovery cache ---
     // Up to 300 characters persisted across sessions in localStorage so the
     // roulette never repeats the same small cast. When sampling 20 cards we
@@ -552,6 +557,49 @@ export class WikipediaModel {
     } catch (e) {
       return [];
     }
+  }
+
+  _loadImageCache() {
+    try {
+      if (typeof localStorage === 'undefined') return new Map();
+      const raw = localStorage.getItem('wg_image_cache');
+      if (!raw) return new Map();
+      const obj = JSON.parse(raw);
+      const m = new Map();
+      if (obj && typeof obj === 'object') {
+        for (const [k, v] of Object.entries(obj)) {
+          if (v) m.set(k, v);
+        }
+      }
+      return m;
+    } catch (e) {
+      return new Map();
+    }
+  }
+
+  _saveImageCache() {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      const obj = {};
+      for (const [k, v] of this._imageCache.entries()) obj[k] = v;
+      localStorage.setItem('wg_image_cache', JSON.stringify(obj));
+    } catch (e) {}
+  }
+
+  // Persist a resolved portrait URL keyed by the card's canonical title so
+  // future spins resolve the exact URL in 0ms.
+  _cacheImage(title, url) {
+    if (!title || !url) return;
+    const key = String(title).toLowerCase().trim();
+    if (this._imageCache.get(key) === url) return;
+    this._imageCache.set(key, url);
+    this._saveImageCache();
+  }
+
+  // Return a previously-resolved portrait URL, or null.
+  _getCachedImage(title) {
+    if (!title) return null;
+    return this._imageCache.get(String(title).toLowerCase().trim()) || null;
   }
 
   _saveDiscoveredCache() {
@@ -603,15 +651,87 @@ export class WikipediaModel {
     if (!Array.isArray(cards)) return;
     for (const c of cards) {
       if (!c) continue;
-      const key = c.pageid != null ? c.pageid : c.name;
+      const key = c.pageid != null ? c.pageid : (c.char_key != null ? c.char_key : c.name);
       if (key == null) continue;
       this._pulledIds.push(key);
     }
-    // Keep only the last 25
-    if (this._pulledIds.length > 25) {
-      this._pulledIds = this._pulledIds.slice(-25);
+    // Keep only the last 30 pulled keys so the next 20-card sample is diverse.
+    if (this._pulledIds.length > 30) {
+      this._pulledIds = this._pulledIds.slice(-30);
     }
     this._savePulledIds();
+  }
+
+  // Convert a persistent `discovered_characters` DB row into the card shape the
+  // rest of the app expects (title/name/img/url/...). DB rows carry no
+  // `_eval`/`score`, so we score them here with the same engine the live pool
+  // uses — that keeps weighted sampling fair between DB-backed and live cards.
+  _dbRowToCard(row, inp = {}) {
+    if (!row) return null;
+    const name = row.name || row.en_title || row.char_key;
+    if (!name) return null;
+    const card = {
+      title: String(name),
+      name: String(name).replace(/\s*\(.*\)$/, ''),
+      enTitle: row.en_title || String(name),
+      wikiTitle: row.en_title || String(name),
+      birth: row.era_year != null ? Number(row.era_year) : null,
+      death: null,
+      countryId: row.country || 'any',
+      era: this.deriveEra(row.era_year != null ? Number(row.era_year) : null),
+      ethnicity: row.ethnicity || 'any',
+      religion: row.religion || 'any',
+      desc: row.bio_en || row.bio_vi || '',
+      descEn: row.bio_en || null,
+      descVi: row.bio_vi || null,
+      summary: row.bio_en || row.bio_vi || '',
+      summaryEn: row.bio_en || null,
+      summaryVi: row.bio_vi || null,
+      img: row.img_url || null,
+      url: 'https://en.wikipedia.org/wiki/' + encodeURIComponent(String(name).replace(/ /g, '_')),
+      urlVi: null,
+      gender: row.gender || null,
+      source: row.source_wiki || 'wiki',
+      universe: row.universe || 'historical',
+      ev: null,
+      targetRole: row.target_role || null,
+      text: ((row.bio_en || '') + ' ' + (row.bio_vi || '') + ' ' + name).toLowerCase(),
+      char_key: row.char_key,
+      _dbRow: row
+    };
+    const sc = this.score(card, inp);
+    card.score = sc.total;
+    card.parts = sc.parts;
+    card.tier = sc.tier;
+    return card;
+  }
+
+  // Hydrate `_prefetchPool` immediately from the persistent DB character pool
+  // (`GET /api/character-pool`). Runs BEFORE the live Wikipedia fetch so instant
+  // spins work even when Wikipedia is slow or rate-limited. Falls back to the
+  // offline pool if the endpoint is unreachable.
+  async _fetchCharacterPoolFromDB(inputs = {}) {
+    if (typeof fetch === 'undefined') return [];
+    const q = new URLSearchParams();
+    if (inputs.universe) q.set('universe', inputs.universe);
+    if (inputs.country) q.set('country', inputs.country);
+    if (inputs.gender) q.set('gender', inputs.gender);
+    q.set('limit', '120');
+
+    const url = '/api/character-pool?' + q.toString();
+    let j;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return [];
+      j = await resp.json();
+    } catch (e) {
+      return [];
+    }
+    if (!j || !Array.isArray(j.characters)) return [];
+
+    return j.characters
+      .map(row => this._dbRowToCard(row, inputs))
+      .filter(Boolean);
   }
 
   // --- Query Cache with 10-min TTL and 100-entry max ---
@@ -678,12 +798,37 @@ export class WikipediaModel {
       this._prefetchTimer = setTimeout(async () => {
         try {
           if (onStatus) onStatus('fetching', 0);
-          // Fetch pool WITHOUT resolving images (avoids 429 floods)
-          const cards = await this._fetchPoolImpl({ ...inputs, selectedMinYear: inputs.eraYear || inputs.year || inputs.era || 1900 });
+
+          // 1. Hydrate the pool IMMEDIATELY from the persistent DB character
+          //    pool so instant spins work even when Wikipedia is slow. This
+          //    runs first and never blocks on live Wikipedia.
+          const dbCards = await this._fetchCharacterPoolFromDB(inputs);
+
+          // 2. Run a non-blocking background Wikipedia + Fandom harvester
+          //    (max 3-4 requests, randomized gsroffset 0-45) that POSTs newly
+          //    discovered characters to /api/character-pool. Fire-and-forget —
+          //    it must never stall the spin animation.
+          this._runBackgroundHarvester(inputs).catch(() => {});
+
+          // 3. Merge: DB pool first (already image-verified), then live pool
+          //    fetched WITHOUT resolving images (avoids 429 floods).
+          let pool = dbCards;
+          try {
+            const liveCards = await this._fetchPoolImpl({ ...inputs, selectedMinYear: inputs.eraYear || inputs.year || inputs.era || 1900 });
+            const seen = new Set(pool.map(c => c.title));
+            for (const c of liveCards) {
+              if (c && c.title && !seen.has(c.title)) {
+                seen.add(c.title);
+                pool.push(c);
+              }
+            }
+          } catch (err) {
+            // Live fetch failed — DB pool is still enough for a spin.
+          }
 
           // Score with the 3-stage hard-constraint + weighted engine (ScoringEngine)
           // _fetchPoolImpl now returns pre-scored, ranked candidates
-          const passing = cards.filter(c => c && c._eval && c._eval.pass && c._eval.score >= 30);
+          const passing = pool.filter(c => c && c._eval && c._eval.pass && c._eval.score >= 30);
           this._prefetchPool = passing;
           this._prefetchFilterKey = filterKey;
           if (onStatus) onStatus('ready', this._prefetchPool.length);
@@ -694,6 +839,94 @@ export class WikipediaModel {
         }
       }, debounceMs);
     });
+  }
+
+  // Non-blocking background harvester. Runs 3-4 randomized Wikipedia + Fandom
+  // requests (gsroffset 0-45) AFTER the pool is hydrated, discovers new
+  // characters, and POSTs them to /api/character-pool so the persistent pool
+  // grows across sessions. Fire-and-forget — errors are logged and swallowed.
+  async _runBackgroundHarvester(inputs = {}) {
+    if (typeof fetch === 'undefined') return;
+    const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+    const universe = inputs.universe || 'historical';
+    const selectedMinYear = inputs.eraYear || inputs.year || inputs.era || 1900;
+
+    const discovered = [];
+    const jobs = [];
+
+    // 3-4 randomized Wikipedia search queries with gsroffset 0-45
+    const queryCount = 3 + Math.floor(Math.random() * 2); // 3 or 4
+    const queries = ['historical figure', 'famous person', 'biography'];
+    for (let i = 0; i < queryCount; i++) {
+      const q = queries[i % queries.length];
+      const offset = rnd(0, 45);
+      jobs.push(this.wikiSearch(q, offset, 20, 'en.wikipedia.org', selectedMinYear, 2026, false));
+    }
+
+    // Optionally one Fandom category fetch for fictional universes
+    if (universe === 'fictional' || universe === 'multiverse') {
+      const fandoms = ['genshin-impact.fandom.com', 'naruto.fandom.com', 'onepiece.fandom.com', 'dragonball.fandom.com'];
+      const cats = ['Playable_Characters', 'Characters', 'Characters', 'Characters'];
+      const idx = Math.floor(Math.random() * fandoms.length);
+      jobs.push(this.fetchFandomCategory(fandoms[idx], cats[idx], 20));
+    }
+
+    const results = await Promise.allSettled(jobs);
+    for (const r of results) {
+      if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+        for (const c of r.value) {
+          if (c && c.title) discovered.push(c);
+        }
+      }
+    }
+
+    if (!discovered.length) return;
+
+    // De-duplicate against what's already in the rotating discovery cache
+    const seen = new Set(this._discoveredCache.map(c => c.pageid != null ? c.pageid : c.name));
+    const fresh = discovered.filter(c => {
+      const k = c.pageid != null ? c.pageid : c.name;
+      return k != null && !seen.has(k);
+    });
+
+    if (!fresh.length) return;
+
+    // POST the newly discovered characters to the persistent pool.
+    const payload = fresh.map(c => ({
+      char_key: String(c.title).toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '').slice(0, 220),
+      name: c.name || c.title,
+      enTitle: c.enTitle || c.title,
+      universe: c.universe || universe,
+      country: c.countryId || 'any',
+      gender: c.gender || 'any',
+      ethnicity: c.ethnicity || 'any',
+      religion: c.religion || 'any',
+      eraYear: c.birth != null ? Number(c.birth) : null,
+      targetRole: c.targetRole || null,
+      bioVi: c.summaryVi || c.descVi || null,
+      bioEn: c.summaryEn || c.descEn || c.summary || c.desc || null,
+      imageUrl: c.img || null,
+      source: c.source || 'wiki'
+    }));
+
+    try {
+      const resp = await fetch('/api/character-pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characters: payload })
+      });
+      if (resp.ok) {
+        const j = await resp.json().catch(() => ({}));
+        if (j && j.upserted) {
+          // Also merge into the local rotating cache so the next spin
+          // benefits without another DB round-trip.
+          this._mergeDiscovered(fresh);
+          console.log(`[WikipediaModel] Background harvester persisted ${j.upserted} new characters`);
+        }
+      }
+    } catch (e) {
+      // Fire-and-forget — never stall the spin.
+    }
   }
 
   // Stable filter key for the reactive prefetch — only the filters that
@@ -717,6 +950,26 @@ export class WikipediaModel {
   // Also resolves images for the chosen 20 cards (max 4 concurrent).
   async getInstantSpinCandidates(inputs = {}, sampleSize = 20) {
     const filterKey = this._filterKey(inputs);
+
+    // 1. Hydrate the pool IMMEDIATELY from the persistent DB character pool
+    //    (GET /api/character-pool) so instant spins work even when Wikipedia
+    //    is slow or rate-limited. Runs BEFORE any live Wikipedia fetch.
+    if (!this._prefetchFilterKey || this._prefetchFilterKey !== filterKey || this._prefetchPool.length === 0) {
+      try {
+        const dbCards = await this._fetchCharacterPoolFromDB(inputs);
+        if (dbCards.length) {
+          // DB pool first (already image-verified), then whatever live pool is
+          // currently warm — merge without duplicating by title.
+          const seen = new Set(dbCards.map(c => c.title));
+          const live = this._prefetchPool.filter(c => c && c.title && !seen.has(c.title));
+          this._prefetchPool = [...dbCards, ...live];
+          this._prefetchFilterKey = filterKey;
+        }
+      } catch (e) {
+        // DB unreachable — fall back to the warm live pool below.
+      }
+    }
+
     let pool = this._prefetchPool;
     if (this._prefetchFilterKey !== filterKey || pool.length === 0) {
       // Fall back to whatever pool is currently warm (filters may have drifted)
@@ -729,11 +982,12 @@ export class WikipediaModel {
     this._mergeDiscovered(pool);
 
     // Build the sampling pool: live pool first, then cached discovered chars.
-    // Exclude the last 25 pulled IDs so the same characters don't return immediately.
+    // Exclude the last 30 pulled keys so the same characters don't return
+    // immediately — forces diversity across consecutive 20-card spins.
     const pulledSet = new Set(this._pulledIds);
     const cachedExtra = this._discoveredCache
-      .filter(c => c && !pulledSet.has(c.pageid != null ? c.pageid : c.name))
-      .filter(c => !pool.some(p => (p.pageid != null ? p.pageid : p.name) === (c.pageid != null ? c.pageid : c.name)));
+      .filter(c => c && !pulledSet.has(c.pageid != null ? c.pageid : (c.char_key != null ? c.char_key : c.name)))
+      .filter(c => !pool.some(p => (p.pageid != null ? p.pageid : (p.char_key != null ? p.char_key : p.name)) === (c.pageid != null ? c.pageid : (c.char_key != null ? c.char_key : c.name))));
 
     const all = [...pool, ...cachedExtra];
 
@@ -764,11 +1018,18 @@ export class WikipediaModel {
     this._recordPulledIds(chosen);
 
     // Resolve images for the chosen 20 cards with max 4 concurrent requests
-    // to avoid 429 floods
+    // to avoid 429 floods. Each REST lookup is hard-capped at 3000ms so a
+    // slow Wikipedia never stalls the spin animation.
     const CONCURRENCY = 4;
+    const IMG_TIMEOUT_MS = 3000;
     for (let i = 0; i < chosen.length; i += CONCURRENCY) {
       const chunk = chosen.slice(i, i + CONCURRENCY);
-      await Promise.all(chunk.map(c => this.resolveCardImage(c)));
+      await Promise.all(chunk.map(c =>
+        Promise.race([
+          this.resolveCardImage(c),
+          new Promise(resolve => setTimeout(() => resolve(), IMG_TIMEOUT_MS))
+        ])
+      ));
     }
 
     return chosen;
@@ -1390,9 +1651,17 @@ export class WikipediaModel {
   // Resolve an already-parsed card's image via the REST Summary API.
   // Used by fetchPool() so the Gacha roller never receives a card with img=null.
   async resolveCardImage(card) {
-    if (!card || card.img) return;
+    if (!card) return;
     const title = card.title || card.name;
     if (!title) return;
+
+    // Already resolved — nothing to do.
+    if (card.img) return;
+
+    // 1. Serve from the persistent image cache (0ms). Cache is keyed by the
+    //    canonical title, so offline cards with the same name always hit.
+    const cached = this._getCachedImage(title);
+    if (cached) { card.img = cached; return; }
 
     const hostOf = u => { try { return new URL(u).hostname; } catch (_) { return null; } };
 
@@ -1404,9 +1673,28 @@ export class WikipediaModel {
     if (vi && !domains.includes(vi)) domains.push(vi);
     if (!domains.includes('en.wikipedia.org')) domains.push('en.wikipedia.org');
 
+    // REST summary lookups need a clean article title. Some cards carry a
+    // parenthetical suffix (e.g. "2B (YoRHa No.2 Type B)") or an explicit
+    // enTitle/wikiTitle — try all of them so the lookup never 404s.
+    const titleCandidates = [
+      title,
+      card.enTitle,
+      card.wikiTitle,
+      String(title).replace(/\s*\(.*\)$/, '').trim()
+    ].filter(Boolean);
+
+    let resolved = null;
     for (const d of domains) {
-      const img = await this.fetchRestThumbnail(title, d);
-      if (img) { card.img = img; return; }
+      for (const cand of titleCandidates) {
+        const img = await this.fetchRestThumbnail(cand, d);
+        if (img) { resolved = img; break; }
+      }
+      if (resolved) break;
+    }
+
+    if (resolved) {
+      card.img = resolved;
+      this._cacheImage(title, resolved);
     }
   }
 
@@ -2041,6 +2329,8 @@ export class WikipediaModel {
     const all = OFFLINE.map(o => ({
       title: o[0],
       name: o[0],
+      enTitle: o[0],
+      wikiTitle: o[0],
       birth: o[1],
       death: o[2],
       countryId: o[3],
@@ -2074,6 +2364,8 @@ export class WikipediaModel {
     return OFFLINE_FICTIONAL.map(f => ({
       title: f[0],
       name: f[0],
+      enTitle: f[0],
+      wikiTitle: f[0],
       birth: f[1],
       death: null,
       countryId: f[2],

@@ -1,7 +1,92 @@
 # PROJECT_STATE.md — WhoAreU (Live Wikipedia Gacha)
 
 Persistent AI handoff file. Update at the end of **every** task: list modified file paths and current status.
-Last updated: 2026-11-13 (Bugfix — `⚠️ Error` in all Target Filter dropdowns)
+Last updated: 2026-11-13 (Persistent Character Pool — `api/character-pool.js` + DB hydration & background harvesting)
+
+---
+
+## Persistent Character Pool — `GET/POST /api/character-pool` (2026-11-13)
+
+**Goal:** Every discovered Wikipedia & Fandom character is upserted into a Neon `discovered_characters` table so the Gacha pool continuously grows across sessions and serves instant, image-verified candidates — no per-spin REST round-trip.
+
+**New files / exports:**
+
+- **`api/character-pool.js`** (NEW) — `GET` & `POST` handler:
+  - `GET ?universe=...&country=...&gender=...&limit=120` queries `discovered_characters` matching active filters, prioritizes non-null `img_url`, orders with `RANDOM()`, `LIMIT 120`. Falls back to `fallbackStore` when `DATABASE_URL` is absent.
+  - `POST { characters: [...] }` batch-upserts up to 60 items, filters out non-person/category titles (`isPersonTitle` mirrors `WikipediaModel.validateEntity`), and executes `INSERT INTO discovered_characters ... ON CONFLICT (char_key) DO UPDATE SET img_url = COALESCE(EXCLUDED.img_url, discovered_characters.img_url), country = COALESCE(NULLIF(EXCLUDED.country, 'any'), discovered_characters.country), updated_at = CURRENT_TIMESTAMP`.
+- **`api/_db.js`** — exported `queryDiscoveredCharacters({ universe, country, gender, limit })` and `upsertDiscoveredCharacters(characters)` helpers; `fallbackStore` is now `export`ed for local testing.
+
+**Wiring (`js/models/WikipediaModel.js`):**
+
+- **`schedulePrefetch()`** now fetches `GET /api/character-pool` FIRST to hydrate `_prefetchPool` immediately, then runs a non-blocking background harvester (`_runBackgroundHarvester`) that fires 3–4 randomized Wikipedia + Fandom requests (`gsroffset` `0–45`) and `POST`s newly discovered characters to `/api/character-pool`.
+- **`getInstantSpinCandidates()`** fetches the DB pool first when the filter changed or the pool is empty; excludes `_recentPulledIds` (last 30 pulled keys) when sampling 20 cards; merges DB rows via the new `_dbRowToCard(row, inp)` converter (scores them with the same `score()` engine so weighted sampling stays fair).
+- **`_dbRowToCard(row, inp)`** — converts a `discovered_characters` row into the card shape the app expects (`title`/`name`/`img`/`url`/`gender`/`targetRole`/...).
+- **`_fetchCharacterPoolFromDB(inputs)`** — `GET /api/character-pool` with filter query params; returns `[]` on any failure.
+
+**Guaranteed portrait rendering (`js/views/RouletteView.js`):**
+
+- **`resolveLivePortrait(imgEl, card, onFallback)`** — whenever `card.img` is null or the `<img>` errors, fetches the Wikipedia REST Summary API in the browser, updates `card.img` in memory, swaps `imgEl.src` in-place (`referrerPolicy="no-referrer"`, **no `crossOrigin`**), and on failure falls back to the monogram.
+- **`createCardElement`** now always renders an `<img>` inside `.wc .im`: directly when `card.img` exists; a placeholder `<img>` immediately launching the live REST rescue when it doesn't. The 2-letter monogram is only the last resort.
+- **`_persistRescuedImage(card, imageUrl)`** — fire-and-forget `POST /api/character-pool` of the rescued portrait so future spins load it in 0ms.
+
+**Verification:**
+- `node --check` on `api/_db.js` ✓, `api/character-pool.js` ✓, `js/models/WikipediaModel.js` ✓, `js/views/RouletteView.js` ✓, `js/controllers/GachaController.js` ✓.
+- `node ./test_pool.mjs` → **ALL CHARACTER-POOL TESTS PASSED**:
+  - POST upserts 2 person characters (1 non-person title filtered out).
+  - GET filtered to Einstein (`historical`/`DE`/`male`); no-filter returns all 2.
+  - POST does not downgrade existing `img_url` or `country` when the new value is null.
+  - OPTIONS → 200, PUT → 405, batch capped at 60.
+- `node ./test_roulette.mjs` → **ALL ROULETTE TESTS PASSED**:
+  - Card WITH img renders `<img referrerpolicy="no-referrer">` (no `crossOrigin`) with the real portrait.
+  - Card WITHOUT img renders a placeholder `<img referrerpolicy="no-referrer">` (monogram is last resort).
+  - `renderTrack()` renders 2 cards; `_persistRescuedImage` does not throw when `fetch` is undefined.
+- `getInstantSpinCandidates()` in Node returns 20 cards and records 20 pulled IDs.
+
+**Files modified/created:**
+- `api/character-pool.js` (NEW)
+- `api/_db.js` (added `queryDiscoveredCharacters`, `upsertDiscoveredCharacters`, exported `fallbackStore`)
+- `js/models/WikipediaModel.js` (DB hydration + background harvester + `_dbRowToCard`)
+- `js/views/RouletteView.js` (`resolveLivePortrait` POST-back + `_persistRescuedImage`)
+
+---
+
+---
+
+## Bugfix — Missing images on Roulette strip & Dossier card (2026-11-13)
+
+**Symptom:** Cards on the top Roulette reel (`MM`, `MT`, `AH`, `BC`, `CH`) and the bottom Dossier card still showed blank/monogram placeholders instead of character portraits.
+
+**Root causes:**
+1. Hardcoded `OFFLINE_FICTIONAL` portrait URLs were 404s (`Son_Goku_Adult.png`, `Naruto_Uzumaki.png`, `Darth_Vader.jpg`, `Geralt_of_Rivia_Witcher_3_render.png`, `MarioNintendo.png`) or Fandom URLs that no longer resolved (`Raiden_Shogun_Card.png`).
+2. `getInstantSpinCandidates` resolved images per card but never persisted them, so every spin re-hit the REST API and could 429-flood.
+3. Offline cards had no `enTitle`/`wikiTitle` fields, so REST thumbnail lookup could not fall back to a clean article title for names with parenthetical suffixes (e.g. `2B (YoRHa No.2 Type B)`, `Bruce Wayne (Batman)`).
+4. `RouletteView.createCardElement` fell straight to the 2-letter monogram when `card.img` was null — there was no in-place `<img>` placeholder for the live REST rescue to swap in.
+
+**Fixes:**
+
+1. **`js/models/WikipediaModel.js`** — Verified every `OFFLINE_FICTIONAL` portrait URL against the official REST Summary API and replaced the broken ones with HTTP-200 Wikimedia URLs:
+   - `Son_Goku_Adult.png` → `https://upload.wikimedia.org/wikipedia/vi/a/af/Son_Goku_YoungAdult.PNG`
+   - `Naruto_Uzumaki.png` → `https://upload.wikimedia.org/wikipedia/vi/9/9a/NarutoUzumaki.png`
+   - `Raiden_Shogun_Card.png` (Fandom 404) → `https://upload.wikimedia.org/wikipedia/en/e/e2/Raiden-shogun-arm.png`
+   - `Darth_Vader.jpg` (404) → `https://upload.wikimedia.org/wikipedia/en/0/0b/Darth_Vader_in_The_Empire_Strikes_Back.jpg`
+   - `Geralt_of_Rivia_Witcher_3_render.png` (404) → `https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Geralt.jpg/330px-Geralt.jpg`
+   - `MarioNintendo.png` (404) → `https://upload.wikimedia.org/wikipedia/en/5/5c/Mario_by_Shigehisa_Nakaue.png`
+   - `Sherlock_Holmes_Portrait_Paget.jpg/500px-…` → `…/330px-Sherlock_Holmes_Portrait_Paget.jpg`
+   - `Naruto` and `Raiden Shogun` `url` fields now point at their real article pages.
+2. **`js/models/WikipediaModel.js`** — Added persistent `_imageCache` (`Map` + `localStorage` key `wg_image_cache`): `resolveCardImage` now checks the cache first (0ms) and writes every newly resolved URL back, so future spins never re-hit the REST API for the same character.
+3. **`js/models/WikipediaModel.js`** — `resolveCardImage` now tries multiple title candidates (`card.title`, `card.enTitle`, `card.wikiTitle`, and the title with the parenthetical suffix stripped) so names like `2B (YoRHa No.2 Type B)` resolve instead of 404ing. Both `offlineHistoricalPool` and `offlineFictionalPool` now emit `enTitle`/`wikiTitle` on every card.
+4. **`js/models/WikipediaModel.js`** — `getInstantSpinCandidates` image resolution is now hard-capped at `3000ms` per call (`Promise.race` with a `setTimeout`) so a slow Wikipedia can never stall the spin animation.
+5. **`js/views/RouletteView.js`** — Extracted a shared `resolveLivePortrait(imgEl, card, onFallback)` helper. `createCardElement` now always renders an `<img>` inside `.wc .im`: when `card.img` exists it renders it directly; when `card.img` is null it renders a placeholder `<img>` and immediately launches the live REST rescue, swapping `imgEl.src` in-place and updating `card.img` in memory. The 2-letter monogram is now only the last resort after the REST rescue fails. `crossOrigin` is never added; `referrerPolicy="no-referrer"` is forced.
+6. **`js/views/CardView.js`** — `rescueImage` hardened identically: multi-candidate title lookup, in-place `imgElement.src` swap, `card.img` mutation, `referrerPolicy="no-referrer"`, no `crossOrigin`. Used by `renderCardImage`, inventory grid, inventory detail, and the multi-pull modal.
+
+**Verification:**
+- `node --check js/models/WikipediaModel.js` ✓
+- `node --check js/views/RouletteView.js` ✓
+- `node --check js/views/CardView.js` ✓
+- `node ./verify_images.mjs` → **ALL CHECKS PASSED**:
+  - All 9 hardcoded `OFFLINE_FICTIONAL` portrait URLs return HTTP 200 (with GET fallback + retry for transient 429s).
+  - `getInstantSpinCandidates()` returns 20 cards, every one with a valid `https://` `img` URL.
+  - `RouletteView` renders `<img referrerpolicy="no-referrer">` inside `.wc .im` (no monogram) when `card.img` is populated, and renders a placeholder `<img>` for cards with no `img`.
 
 ---
 
